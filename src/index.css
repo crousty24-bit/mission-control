@@ -1,0 +1,79 @@
+:root {
+  --bg: #110d0b;
+  --bg-elevated: #19130f;
+  --panel: #201713;
+  --panel-strong: #281d18;
+  --text-main: #fff4ee;
+  --text-muted: #dcc0b1;
+  --accent: #f4a97f;
+  --accent-soft: #ffd3bd;
+  --accent-strong: #f08d57;
+  --border-soft: rgba(244, 169, 127, 0.18);
+  --border-strong: rgba(244, 169, 127, 0.3);
+  --surface-glow: rgba(244, 169, 127, 0.12);
+  --status-progress: #f4b184;
+  --status-review: #ffd6a0;
+  --status-blocked: #ef8b72;
+  --status-done: #c8db97;
+  --status-idle: #ecd0c0;
+  --font-sans: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-main);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html.runtime-tauri {
+  scroll-behavior: auto;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text-main);
+}
+
+a,
+button,
+input {
+  font: inherit;
+}
+
+button,
+input {
+  border-radius: 0;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+code {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
