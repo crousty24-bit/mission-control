@@ -1,5 +1,6 @@
 import { Link } from "../lib/router";
 import type { Project, UserSnapshot } from "../types";
+import { BorderGlow } from "./BorderGlow";
 
 interface HeroOverviewProps {
 	snapshot: UserSnapshot;
@@ -26,35 +27,75 @@ export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
 				<h3 id="hero-overview-summary-title" className="sr-only">
 					Résumé d'activité
 				</h3>
-				<div className="signal-grid__lead">
-					<span>Cadence actuelle</span>
-					<strong>{snapshot.focusScore}%</strong>
-					<p>
-						{snapshot.completedThisWeek} tâches closes en local. Prochaine
-						échéance : {snapshot.nextDeadline}.
-					</p>
-				</div>
-
-				<div className="signal-grid__stack">
-					<div className="signal-card">
-						<span>Projet en tête</span>
-						<strong>{leadProject?.name ?? "Aucun projet"}</strong>
+				<BorderGlow
+					className="signal-glow-card signal-glow-card--lead"
+					edgeSensitivity={32}
+					glowColor="20 63 56"
+					backgroundColor="#221510"
+					borderRadius={22}
+					glowRadius={26}
+					glowIntensity={0.38}
+					coneSpread={24}
+					animated
+					fillOpacity={0.26}
+					colors={["#d46f45", "#f0c1ab", "#ffd7c1"]}
+				>
+					<div className="signal-grid__lead">
+						<span>Cadence actuelle</span>
+						<strong>{snapshot.focusScore}%</strong>
 						<p>
-							{leadProject?.milestone ??
-								"Crée un premier projet pour démarrer."}
+							{snapshot.completedThisWeek} tâches closes en local. Prochaine
+							échéance : {snapshot.nextDeadline}.
 						</p>
 					</div>
+				</BorderGlow>
 
-					<div className="signal-card signal-card--row">
-						<div>
-							<span>Projets actifs</span>
-							<strong>{snapshot.activeProjects}</strong>
+				<div className="signal-grid__stack">
+					<BorderGlow
+						className="signal-glow-card"
+						edgeSensitivity={34}
+						glowColor="20 63 56"
+						backgroundColor="#21140f"
+						borderRadius={22}
+						glowRadius={24}
+						glowIntensity={0.34}
+						coneSpread={22}
+						fillOpacity={0.22}
+						colors={["#d46f45", "#f0c1ab", "#ffd7c1"]}
+					>
+						<div className="signal-card">
+							<span>Projet en tête</span>
+							<strong>{leadProject?.name ?? "Aucun projet"}</strong>
+							<p>
+								{leadProject?.milestone ??
+									"Crée un premier projet pour démarrer."}
+							</p>
 						</div>
-						<div>
-							<span>Completion globale</span>
-							<strong>{snapshot.completionRate}%</strong>
+					</BorderGlow>
+
+					<BorderGlow
+						className="signal-glow-card"
+						edgeSensitivity={34}
+						glowColor="20 63 56"
+						backgroundColor="#21140f"
+						borderRadius={22}
+						glowRadius={24}
+						glowIntensity={0.34}
+						coneSpread={22}
+						fillOpacity={0.22}
+						colors={["#d46f45", "#f0c1ab", "#ffd7c1"]}
+					>
+						<div className="signal-card signal-card--row">
+							<div>
+								<span>Projets actifs</span>
+								<strong>{snapshot.activeProjects}</strong>
+							</div>
+							<div>
+								<span>Completion globale</span>
+								<strong>{snapshot.completionRate}%</strong>
+							</div>
 						</div>
-					</div>
+					</BorderGlow>
 				</div>
 			</section>
 		</section>
