@@ -1,4 +1,4 @@
-import logoUrl from "../../docs/media/logo-mission-control.png";
+import logoUrl from "../../src-tauri/icons/256x256.png";
 import { NavLink, Outlet } from "../lib/router";
 
 export function AppShell() {

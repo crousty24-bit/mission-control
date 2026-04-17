@@ -1059,6 +1059,26 @@
 	border: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+	.button,
+	.section-block,
+	.project-card,
+	.agent-row,
+	.task-row,
+	.topnav__link,
+	.border-glow-card::before,
+	.border-glow-card::after,
+	.border-glow-card > .edge-light {
+		transition: none;
+		animation: none;
+	}
+
+	.button:hover,
+	.button:focus-visible {
+		transform: none;
+	}
+}
+
 .runtime-tauri .app-shell {
 	background: linear-gradient(180deg, var(--bg-elevated), var(--bg));
 }
@@ -1104,9 +1124,16 @@
 	box-shadow: none;
 }
 
+.runtime-tauri .border-glow-card::before,
+.runtime-tauri .border-glow-card::after,
+.runtime-tauri .border-glow-card > .edge-light {
+	display: none;
+}
+
 .runtime-tauri .button,
 .runtime-tauri .signal-grid__lead,
 .runtime-tauri .signal-card,
+.runtime-tauri .border-glow-card,
 .runtime-tauri .agent-row,
 .runtime-tauri .task-row {
 	transition: none;
@@ -1175,6 +1202,7 @@
 .runtime-tauri .hero-panel,
 .runtime-tauri .signal-grid__lead,
 .runtime-tauri .signal-card,
+.runtime-tauri .border-glow-card,
 .runtime-tauri .agent-row,
 .runtime-tauri .task-row,
 .runtime-tauri .progress-meter,
