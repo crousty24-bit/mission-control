@@ -52,6 +52,11 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - garder la logique métier dérivée côté backend local
 - garder le front agnostique au transport autant que possible
 - éviter les abstractions supplémentaires sans gain concret
+- utiliser `Biome` via `biome.json` comme référence de formatage et de lint pour les fichiers touchés
+- avant de conclure un changement front/Node/TS, exécuter au minimum `npm run lint:biome:files -- <fichiers_modifiés>` ou `npm run lint:biome` si le périmètre est large
+- appliquer les corrections sûres avec `npm run lint:biome:write:files -- <fichiers_modifiés>` avant de traiter manuellement les diagnostics restants
+- ne pas lancer de reformatage massif hors périmètre demandé ; `Biome --write` sur `.` est réservé aux lots dédiés de normalisation
+- conserver `ESLint` comme contrôle secondaire via `npm run lint:eslint` tant que la transition Biome n’est pas terminée
 
 ## Données et métier
 
@@ -78,10 +83,17 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - `npm run build:server`
 - `npm run build:app`
 - `npm run lint`
+- `npm run lint:eslint`
+- `npm run lint:biome`
+- `npm run lint:biome:files -- <fichiers_modifiés>`
+- `npm run lint:biome:write`
+- `npm run lint:biome:write:files -- <fichiers_modifiés>`
 
 ## Vérification minimale
 
 - `npm run lint`
+- `npm run lint:eslint`
+- `npm run lint:biome`
 - `npm run build`
 - `npm run build:server`
 - `cargo check --manifest-path src-tauri/Cargo.toml`
@@ -90,6 +102,9 @@ L’AppImage n’est plus le bundle par défaut du projet.
 
 Selon le besoin :
 
+- `npm run lint:biome:files -- <fichiers_modifiés>` pour valider un changement ciblé sans bruit externe
+- `npm run lint:biome:write:files -- <fichiers_modifiés>` pour appliquer uniquement les corrections sûres sur le périmètre modifié
+- `npm run lint:biome` pour l’audit global du scope maintenu
 - `npm run tauri:build` pour vérifier le packaging `.deb`
 - `npm run db:reset` si la base web fallback doit être réinitialisée
 

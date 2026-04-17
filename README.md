@@ -213,6 +213,11 @@ npm run app
 npm run db:reset
 npm run build
 npm run build:server
+npm run lint
+npm run lint:eslint
+npm run lint:biome
+npm run lint:biome:files -- src/main.tsx src/api/tauriRuntime.ts
+npm run lint:biome:write:files -- src/main.tsx src/api/tauriRuntime.ts
 npm run tauri:dev
 npm run tauri:build
 npm run tauri:info
@@ -224,11 +229,21 @@ Checks recommandés :
 
 ```bash
 npm run lint
+npm run lint:eslint
+npm run lint:biome
 npm run build
 npm run build:server
 npm run tauri:info
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
+
+Procédure Biome pour les changements courants :
+
+- utilise `npm run lint:biome:files -- <fichiers_modifiés>` avant de conclure une tâche
+- applique les corrections sûres avec `npm run lint:biome:write:files -- <fichiers_modifiés>`
+- traite ensuite manuellement les diagnostics `lint/*` restants sur le même périmètre
+- réserve `npm run lint:biome` à l’audit global ou aux lots dédiés de normalisation
+- `npm run lint:eslint` reste actif temporairement comme contrôle secondaire pendant la transition
 
 ## Notes Linux / Tauri
 
