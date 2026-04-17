@@ -1,15 +1,28 @@
-import { randomUUID } from 'node:crypto'
-import { getDb } from './connection.js'
-import { seedAgents, seedProjects, seedSnapshot, seedTasks } from './seedData.js'
+import { randomUUID } from "node:crypto";
+import { getDb } from "./connection.js";
+import {
+	seedAgents,
+	seedProjects,
+	seedSnapshot,
+	seedTasks,
+} from "./seedData.js";
 
 function now() {
-  return new Date().toISOString()
+	return new Date().toISOString();
+}
+
+function ensureColumn(db, tableName, columnName, definition) {
+	const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+	const hasColumn = columns.some((column) => column.name === columnName);
+	if (!hasColumn) {
+		db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+	}
 }
 
 export function initDatabase() {
-  const db = getDb()
+	const db = getDb();
 
-  db.exec(`
+	db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -19,6 +32,7 @@ export function initDatabase() {
       status TEXT NOT NULL,
       summary TEXT NOT NULL,
       milestone TEXT NOT NULL,
+      archived_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -54,81 +68,86 @@ export function initDatabase() {
       next_deadline TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-  `)
+  `);
 
-  const projectCount = db.prepare('SELECT COUNT(*) AS count FROM projects').get().count
-  if (projectCount > 0) {
-    return
-  }
+	ensureColumn(db, "projects", "archived_at", "TEXT");
 
-  const projectStmt = db.prepare(`
-    INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
+	const projectCount = db
+		.prepare("SELECT COUNT(*) AS count FROM projects")
+		.get().count;
+	if (projectCount > 0) {
+		return;
+	}
 
-  const taskStmt = db.prepare(`
+	const projectStmt = db.prepare(`
+    INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+	const taskStmt = db.prepare(`
     INSERT INTO tasks (id, title, done, project_id, urgency, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `)
+  `);
 
-  const agentStmt = db.prepare(`
+	const agentStmt = db.prepare(`
     INSERT INTO agents (id, name, role, status, current_task, project_id, runtime, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `)
+  `);
 
-  const snapshotStmt = db.prepare(`
+	const snapshotStmt = db.prepare(`
     INSERT INTO user_snapshot (id, developer, sprint, focus_score, next_deadline, updated_at)
     VALUES (?, ?, ?, ?, ?, ?)
-  `)
+  `);
 
-  const timestamp = now()
+	const timestamp = now();
 
-  for (const project of seedProjects) {
-    projectStmt.run(
-      project.id,
-      project.name,
-      project.client,
-      JSON.stringify(project.stack),
-      project.priority,
-      project.status,
-      project.summary,
-      project.milestone,
-      timestamp,
-      timestamp,
-    )
-  }
+	for (const project of seedProjects) {
+		projectStmt.run(
+			project.id,
+			project.name,
+			project.client,
+			JSON.stringify(project.stack),
+			project.priority,
+			project.status,
+			project.summary,
+			project.milestone,
+			null,
+			timestamp,
+			timestamp,
+		);
+	}
 
-  for (const task of seedTasks) {
-    taskStmt.run(
-      task.id,
-      task.title,
-      task.done,
-      task.projectId,
-      task.urgency,
-      timestamp,
-      timestamp,
-    )
-  }
+	for (const task of seedTasks) {
+		taskStmt.run(
+			task.id,
+			task.title,
+			task.done,
+			task.projectId,
+			task.urgency,
+			timestamp,
+			timestamp,
+		);
+	}
 
-  for (const agent of seedAgents) {
-    agentStmt.run(
-      agent.id,
-      agent.name,
-      agent.role,
-      agent.status,
-      agent.currentTask,
-      agent.projectId,
-      agent.runtime,
-      timestamp,
-    )
-  }
+	for (const agent of seedAgents) {
+		agentStmt.run(
+			agent.id,
+			agent.name,
+			agent.role,
+			agent.status,
+			agent.currentTask,
+			agent.projectId,
+			agent.runtime,
+			timestamp,
+		);
+	}
 
-  snapshotStmt.run(
-    randomUUID(),
-    seedSnapshot.developer,
-    seedSnapshot.sprint,
-    seedSnapshot.focusScore,
-    seedSnapshot.nextDeadline,
-    timestamp,
-  )
+	snapshotStmt.run(
+		randomUUID(),
+		seedSnapshot.developer,
+		seedSnapshot.sprint,
+		seedSnapshot.focusScore,
+		seedSnapshot.nextDeadline,
+		timestamp,
+	);
 }
