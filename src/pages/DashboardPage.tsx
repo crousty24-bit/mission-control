@@ -11,6 +11,7 @@ export function DashboardPage() {
 	const { projects, isLoading, error } = useProjects();
 	const { snapshot } = useUserSnapshot();
 	const {
+		archiveProjects,
 		createProject,
 		deleteProject,
 		editProject,
@@ -77,6 +78,7 @@ export function DashboardPage() {
 				onDeleteProject={(projectId) => {
 					void deleteProject(projectId);
 				}}
+				onArchiveProjects={(projectIds) => archiveProjects(projectIds)}
 			/>
 
 			<section className="dashboard-grid">

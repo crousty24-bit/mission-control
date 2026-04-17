@@ -58,7 +58,20 @@ function describeDonutSegment(
 	const outerEnd = polarToCartesian(centerX, centerY, outerRadius, startAngle);
 	const innerStart = polarToCartesian(centerX, centerY, innerRadius, endAngle);
 	const innerEnd = polarToCartesian(centerX, centerY, innerRadius, startAngle);
-	const largeArcFlag = endAngle - startAngle > 180 ? "1" : "0";
+	const sweepAngle = endAngle - startAngle;
+	const largeArcFlag = sweepAngle > 180 ? "1" : "0";
+
+	if (sweepAngle >= 359.999) {
+		return [
+			`M ${centerX} ${centerY - outerRadius}`,
+			`A ${outerRadius} ${outerRadius} 0 1 1 ${centerX} ${centerY + outerRadius}`,
+			`A ${outerRadius} ${outerRadius} 0 1 1 ${centerX} ${centerY - outerRadius}`,
+			`L ${centerX} ${centerY - innerRadius}`,
+			`A ${innerRadius} ${innerRadius} 0 1 0 ${centerX} ${centerY + innerRadius}`,
+			`A ${innerRadius} ${innerRadius} 0 1 0 ${centerX} ${centerY - innerRadius}`,
+			"Z",
+		].join(" ");
+	}
 
 	return [
 		`M ${outerStart.x} ${outerStart.y}`,

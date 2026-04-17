@@ -38,6 +38,14 @@ export function AppShell() {
 					>
 						Dashboard
 					</NavLink>
+					<NavLink
+						to="/archives"
+						className={({ isActive }) =>
+							isActive ? "topnav__link topnav__link--active" : "topnav__link"
+						}
+					>
+						Archives
+					</NavLink>
 				</nav>
 				<div className="topbar__spacer" aria-hidden="true" />
 			</header>

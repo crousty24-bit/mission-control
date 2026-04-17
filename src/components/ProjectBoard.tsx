@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
 	CreateProjectInput,
 	Project,
@@ -23,6 +23,7 @@ interface ProjectBoardProps {
 	onUpdateStatus: (projectId: string, status: ProjectStatus) => void;
 	onUpdatePriority: (projectId: string, priority: ProjectPriority) => void;
 	onDeleteProject: (projectId: string) => void;
+	onArchiveProjects: (projectIds: string[]) => Promise<void>;
 }
 
 export function ProjectBoard({
@@ -34,11 +35,25 @@ export function ProjectBoard({
 	onUpdateStatus,
 	onUpdatePriority,
 	onDeleteProject,
+	onArchiveProjects,
 }: ProjectBoardProps) {
 	const [modalState, setModalState] = useState<{
 		mode: "create" | "edit" | "view";
 		project?: Project;
 	} | null>(null);
+	const [isArchiveSelectionMode, setIsArchiveSelectionMode] = useState(false);
+	const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
+	const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+
+	const archivableProjects = useMemo(
+		() => projects.filter((project) => project.status === "done"),
+		[projects],
+	);
+
+	const selectedArchiveProjects = useMemo(
+		() => projects.filter((project) => selectedArchiveIds.includes(project.id)),
+		[projects, selectedArchiveIds],
+	);
 
 	useEffect(() => {
 		const handlePointerDown = (event: PointerEvent) => {
@@ -62,6 +77,53 @@ export function ProjectBoard({
 		return () => document.removeEventListener("pointerdown", handlePointerDown);
 	}, []);
 
+	useEffect(() => {
+		if (!isArchiveSelectionMode) {
+			return;
+		}
+
+		const archivableIds = new Set(
+			archivableProjects.map((project) => project.id),
+		);
+		setSelectedArchiveIds((current) =>
+			current.filter((projectId) => archivableIds.has(projectId)),
+		);
+
+		if (archivableProjects.length === 0) {
+			setIsArchiveSelectionMode(false);
+			setIsArchiveConfirmOpen(false);
+		}
+	}, [archivableProjects, isArchiveSelectionMode]);
+
+	const resetArchiveSelection = () => {
+		setIsArchiveSelectionMode(false);
+		setSelectedArchiveIds([]);
+		setIsArchiveConfirmOpen(false);
+	};
+
+	const toggleArchiveSelection = (projectId: string) => {
+		setSelectedArchiveIds((current) =>
+			current.includes(projectId)
+				? current.filter((value) => value !== projectId)
+				: [...current, projectId],
+		);
+	};
+
+	const handleArchiveAction = async () => {
+		if (!isArchiveSelectionMode) {
+			setModalState(null);
+			setIsArchiveSelectionMode(true);
+			setSelectedArchiveIds([]);
+			return;
+		}
+
+		if (selectedArchiveIds.length === 0) {
+			return;
+		}
+
+		setIsArchiveConfirmOpen(true);
+	};
+
 	return (
 		<section className="section-block">
 			<div className="section-heading">
@@ -69,22 +131,67 @@ export function ProjectBoard({
 					<div>
 						<p className="eyebrow">Projets</p>
 						<h3>Pipeline en cours</h3>
+						<p className="section-note">
+							{isArchiveSelectionMode
+								? "Sélectionne un ou plusieurs projets done, puis confirme leur archivage."
+								: "Les projets archivés quittent cette pipeline et restent consultables dans Archives."}
+						</p>
 					</div>
-					<button
-						type="button"
-						className="button button--ghost button--compact"
-						onClick={() => setModalState({ mode: "create" })}
-					>
-						Ajouter un projet
-					</button>
+					<div className="project-board__actions">
+						{isArchiveSelectionMode ? (
+							<>
+								<button
+									type="button"
+									className="button button--ghost button--compact"
+									onClick={resetArchiveSelection}
+								>
+									Annuler
+								</button>
+								<button
+									type="button"
+									className="button button--primary button--compact"
+									onClick={() => {
+										void handleArchiveAction();
+									}}
+									disabled={selectedArchiveIds.length === 0}
+								>
+									Confirmer la sélection
+								</button>
+							</>
+						) : (
+							<>
+								<button
+									type="button"
+									className="button button--primary button--compact"
+									onClick={() => {
+										void handleArchiveAction();
+									}}
+									disabled={archivableProjects.length === 0}
+								>
+									Archiver
+								</button>
+								<button
+									type="button"
+									className="button button--ghost button--compact"
+									onClick={() => setModalState({ mode: "create" })}
+								>
+									Ajouter un projet
+								</button>
+							</>
+						)}
+					</div>
 				</div>
 			</div>
+
 			<div className="project-board">
 				{projects.map((project) => (
 					<ProjectCard
 						key={project.id}
 						project={project}
 						isSelected={project.id === selectedProjectId}
+						isArchiveSelectionMode={isArchiveSelectionMode}
+						isArchiveSelected={selectedArchiveIds.includes(project.id)}
+						onToggleArchiveSelection={toggleArchiveSelection}
 						onSelect={onSelectProject}
 						onOpenProject={(projectId) =>
 							setModalState({
@@ -104,6 +211,7 @@ export function ProjectBoard({
 					/>
 				))}
 			</div>
+
 			{modalState ? (
 				<ProjectModal
 					key={`${modalState.mode}-${modalState.project?.id ?? "new"}`}
@@ -135,6 +243,64 @@ export function ProjectBoard({
 						}
 					}}
 				/>
+			) : null}
+
+			{isArchiveConfirmOpen ? (
+				<div className="modal-backdrop">
+					<section
+						className="modal-panel modal-panel--narrow"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="archive-projects-title"
+					>
+						<div className="modal-header">
+							<div>
+								<p className="eyebrow">Archivage</p>
+								<h3 id="archive-projects-title">
+									Confirmer l’archivage des projets sélectionnés
+								</h3>
+							</div>
+						</div>
+
+						<div className="archive-confirmation">
+							<p className="section-note">
+								Les projets archivés quittent immédiatement la pipeline active
+								et seront déplacés dans la page Archives.
+							</p>
+							<ul className="archive-confirmation__list">
+								{selectedArchiveProjects.map((project) => (
+									<li key={project.id}>{project.name}</li>
+								))}
+							</ul>
+						</div>
+
+						<div className="modal-actions">
+							<button
+								type="button"
+								className="button button--ghost"
+								onClick={() => setIsArchiveConfirmOpen(false)}
+							>
+								Annuler
+							</button>
+							<button
+								type="button"
+								className="button button--primary"
+								onClick={() => {
+									void (async () => {
+										try {
+											await onArchiveProjects(selectedArchiveIds);
+											resetArchiveSelection();
+										} catch {
+											// The provider already exposes the transport error state.
+										}
+									})();
+								}}
+							>
+								Confirmer l’archivage
+							</button>
+						</div>
+					</section>
+				</div>
 			) : null}
 		</section>
 	);
