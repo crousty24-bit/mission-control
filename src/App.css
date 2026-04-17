@@ -507,6 +507,7 @@
 
 .project-card--archive-selectable {
 	border-color: rgba(176, 231, 175, 0.26);
+	cursor: pointer;
 }
 
 .project-card--archive-selected {
@@ -603,6 +604,22 @@
 	text-transform: uppercase;
 	color: var(--text-muted);
 	white-space: nowrap;
+	background: rgba(255, 255, 255, 0.03);
+	cursor: pointer;
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		color 160ms ease;
+}
+
+.project-card__archive-note:hover,
+.project-card__archive-note:focus-visible {
+	background: rgba(176, 231, 175, 0.08);
+}
+
+.project-card__archive-note:disabled {
+	cursor: not-allowed;
+	opacity: 0.7;
 }
 
 .project-card--archive-selected .project-card__archive-note,

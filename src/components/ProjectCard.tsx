@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import type { Project, ProjectPriority, ProjectStatus } from "../types";
 import { CrossIcon, IconButton, PencilIcon } from "./IconButton";
 
@@ -79,13 +79,36 @@ export function ProjectCard({
 		.filter(Boolean)
 		.join(" ");
 
+	const handleArchiveCardClick = () => {
+		if (isArchiveSelectable) {
+			onToggleArchiveSelection?.(project.id);
+		}
+	};
+
+	const handleArchiveCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+		if (!isArchiveSelectable) {
+			return;
+		}
+
+		if (event.key === "Enter" || event.key === " ") {
+			event.preventDefault();
+			onToggleArchiveSelection?.(project.id);
+		}
+	};
+
 	return (
-		<article className={cardClassName}>
+		<article
+			className={cardClassName}
+			onClick={isArchiveSelectionMode ? handleArchiveCardClick : undefined}
+			onKeyDown={isArchiveSelectionMode ? handleArchiveCardKeyDown : undefined}
+			role={isArchiveSelectable ? "button" : undefined}
+			tabIndex={isArchiveSelectable ? 0 : undefined}
+		>
 			<div className="project-card__header">
 				<button
 					type="button"
 					className="project-card__main-action"
-					onClick={handleSelect}
+					onClick={isArchiveSelectionMode ? undefined : handleSelect}
 					onDoubleClick={handleOpen}
 					disabled={isArchiveDisabled}
 				>
@@ -123,13 +146,21 @@ export function ProjectCard({
 					)}
 
 					{isArchiveSelectionMode ? (
-						<span className="project-card__archive-note">
+						<button
+							type="button"
+							className="project-card__archive-note"
+							onClick={(event) => {
+								event.stopPropagation();
+								handleArchiveCardClick();
+							}}
+							disabled={isArchiveDisabled}
+						>
 							{isArchiveSelectable
 								? isArchiveSelected
 									? "Sélectionné"
 									: "Archivable"
 								: "Non archivable"}
-						</span>
+						</button>
 					) : (
 						<div className="project-card__icon-actions">
 							<IconButton
@@ -151,7 +182,7 @@ export function ProjectCard({
 			<button
 				type="button"
 				className="project-card__summary-action"
-				onClick={handleSelect}
+				onClick={isArchiveSelectionMode ? undefined : handleSelect}
 				onDoubleClick={handleOpen}
 				disabled={isArchiveDisabled}
 			>
@@ -191,7 +222,7 @@ export function ProjectCard({
 				<button
 					type="button"
 					className="project-card__progress-action"
-					onClick={handleSelect}
+					onClick={isArchiveSelectionMode ? undefined : handleSelect}
 					onDoubleClick={handleOpen}
 					disabled={isArchiveDisabled}
 				>
