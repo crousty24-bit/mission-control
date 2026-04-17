@@ -280,6 +280,31 @@
 	);
 }
 
+.signal-glow-card {
+	background: transparent;
+	box-shadow: none;
+}
+
+.signal-glow-card > .border-glow-inner {
+	height: 100%;
+}
+
+.signal-glow-card .signal-grid__lead,
+.signal-glow-card .signal-card {
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	border-radius: inherit;
+}
+
+.signal-glow-card .signal-grid__lead:hover,
+.signal-glow-card .signal-grid__lead:focus-within,
+.signal-glow-card .signal-card:hover,
+.signal-glow-card .signal-card:focus-within {
+	border-color: transparent;
+	background: transparent;
+}
+
 .signal-grid__lead {
 	padding: 1.6rem;
 	min-height: 17rem;
@@ -1060,6 +1085,7 @@
 
 .runtime-tauri .signal-grid__lead,
 .runtime-tauri .signal-card,
+.runtime-tauri .border-glow-card,
 .runtime-tauri .project-card,
 .runtime-tauri .agent-row,
 .runtime-tauri .task-row,
@@ -1072,6 +1098,7 @@
 .runtime-tauri .hero-panel,
 .runtime-tauri .signal-grid__lead,
 .runtime-tauri .signal-card,
+.runtime-tauri .border-glow-card,
 .runtime-tauri .agent-row,
 .runtime-tauri .dropdown-menu__content {
 	box-shadow: none;
