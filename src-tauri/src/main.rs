@@ -82,10 +82,9 @@ struct LocalAgent {
 #[serde(rename_all = "camelCase")]
 struct UserSnapshot {
     developer: String,
-    sprint: String,
-    focus_score: i64,
-    completed_this_week: i64,
     active_projects: i64,
+    completed_tasks: i64,
+    remaining_tasks: i64,
     next_deadline: String,
     completion_rate: i64,
 }
@@ -155,8 +154,6 @@ struct CreateAgentInput {
 #[serde(rename_all = "camelCase")]
 struct UpdateUserSnapshotInput {
     developer: Option<String>,
-    sprint: Option<String>,
-    focus_score: Option<i64>,
     next_deadline: Option<String>,
 }
 
@@ -693,6 +690,16 @@ fn get_user_snapshot_record(connection: &Connection) -> Result<Option<UserSnapsh
 }
 
 fn get_completion_rate(connection: &Connection) -> Result<i64, String> {
+    let (completed_tasks, remaining_tasks) = get_active_task_stats(connection)?;
+    let total_tasks = completed_tasks + remaining_tasks;
+    if total_tasks == 0 {
+        return Ok(0);
+    }
+
+    Ok((((completed_tasks as f64) / (total_tasks as f64)) * 100.0).round() as i64)
+}
+
+fn get_active_task_stats(connection: &Connection) -> Result<(i64, i64), String> {
     let mut statement = connection
         .prepare("SELECT id FROM projects WHERE archived_at IS NULL")
         .map_err(|error| error.to_string())?;
@@ -706,13 +713,10 @@ fn get_completion_rate(connection: &Connection) -> Result<i64, String> {
         .into_iter()
         .filter(|task| active_project_ids.contains(&task.project_id))
         .collect::<Vec<_>>();
-    if tasks.is_empty() {
-        return Ok(0);
-    }
+    let completed_tasks = tasks.iter().filter(|task| task.done).count() as i64;
+    let remaining_tasks = tasks.iter().filter(|task| !task.done).count() as i64;
 
-    let done_count = tasks.iter().filter(|task| task.done).count() as f64;
-    let total_count = tasks.len() as f64;
-    Ok(((done_count / total_count) * 100.0).round() as i64)
+    Ok((completed_tasks, remaining_tasks))
 }
 
 fn get_project_progress(project_id: &str, tasks: &[TaskItem]) -> i64 {
@@ -826,13 +830,13 @@ fn get_user_snapshot_view(connection: &Connection) -> Result<UserSnapshot, Strin
         get_user_snapshot_record(connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
     let completion_rate = get_completion_rate(connection)?;
     let active_projects = get_projects_view(connection)?.len() as i64;
+    let (completed_tasks, remaining_tasks) = get_active_task_stats(connection)?;
 
     Ok(UserSnapshot {
         developer: record.developer,
-        sprint: record.sprint,
-        focus_score: record.focus_score,
-        completed_this_week: ((completion_rate as f64 / 100.0) * 12.0).round() as i64,
         active_projects,
+        completed_tasks,
+        remaining_tasks,
         next_deadline: record.next_deadline,
         completion_rate,
     })
@@ -1168,8 +1172,8 @@ fn update_user_snapshot(changes: UpdateUserSnapshotInput) -> Result<UserSnapshot
              SET developer = ?1, sprint = ?2, focus_score = ?3, next_deadline = ?4, updated_at = ?5",
             params![
                 changes.developer.unwrap_or(current.developer),
-                changes.sprint.unwrap_or(current.sprint),
-                changes.focus_score.unwrap_or(current.focus_score),
+                current.sprint,
+                current.focus_score,
                 changes.next_deadline.unwrap_or(current.next_deadline),
                 now_string()
             ],

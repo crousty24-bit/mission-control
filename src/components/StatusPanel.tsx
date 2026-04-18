@@ -14,12 +14,16 @@ export function StatusPanel({ snapshot }: StatusPanelProps) {
 
 			<div className="status-layout">
 				<div className="status-metric">
-					<span>Sprint</span>
-					<strong>{snapshot.sprint}</strong>
+					<span>Tâches restantes</span>
+					<strong>{snapshot.remainingTasks}</strong>
 				</div>
 				<div className="status-metric">
-					<span>Cadence actuelle</span>
-					<strong>{snapshot.focusScore}%</strong>
+					<span>Tâches accomplies</span>
+					<strong>{snapshot.completedTasks}</strong>
+				</div>
+				<div className="status-metric">
+					<span>Projets en cours</span>
+					<strong>{snapshot.activeProjects}</strong>
 				</div>
 				<div className="status-metric">
 					<span>Completion globale</span>

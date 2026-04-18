@@ -5,9 +5,14 @@ import { BorderGlow } from "./BorderGlow";
 interface HeroOverviewProps {
 	snapshot: UserSnapshot;
 	leadProject: Project | null;
+	inProgressProjects: number;
 }
 
-export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
+export function HeroOverview({
+	snapshot,
+	leadProject,
+	inProgressProjects,
+}: HeroOverviewProps) {
 	return (
 		<section className="hero-panel">
 			<div className="hero-copy">
@@ -41,11 +46,11 @@ export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
 					colors={["#d46f45", "#f0c1ab", "#ffd7c1"]}
 				>
 					<div className="signal-grid__lead">
-						<span>Cadence actuelle</span>
-						<strong>{snapshot.focusScore}%</strong>
+						<span>Completion globale</span>
+						<strong>{snapshot.completionRate}%</strong>
 						<p>
-							{snapshot.completedThisWeek} tâches closes en local. Prochaine
-							échéance : {snapshot.nextDeadline}.
+							{snapshot.completedTasks} tâches accomplies.{" "}
+							{snapshot.remainingTasks} restantes dans les projets actifs.
 						</p>
 					</div>
 				</BorderGlow>
@@ -91,8 +96,8 @@ export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
 								<strong>{snapshot.activeProjects}</strong>
 							</div>
 							<div>
-								<span>Completion globale</span>
-								<strong>{snapshot.completionRate}%</strong>
+								<span>In progress</span>
+								<strong>{inProgressProjects}</strong>
 							</div>
 						</div>
 					</BorderGlow>

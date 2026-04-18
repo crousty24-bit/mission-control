@@ -2,10 +2,9 @@ import type { LocalAgent, Project, TaskItem, UserSnapshot } from "../types";
 
 export const userSnapshot: UserSnapshot = {
 	developer: "Developer",
-	sprint: "Current Sprint",
-	focusScore: 76,
-	completedThisWeek: 11,
 	activeProjects: 3,
+	completedTasks: 4,
+	remainingTasks: 4,
 	nextDeadline: "Upcoming milestone",
 	completionRate: 50,
 };
