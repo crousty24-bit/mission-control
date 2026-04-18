@@ -5,9 +5,14 @@ import { BorderGlow } from "./BorderGlow";
 interface HeroOverviewProps {
 	snapshot: UserSnapshot;
 	leadProject: Project | null;
+	inProgressProjects: number;
 }
 
-export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
+export function HeroOverview({
+	snapshot,
+	leadProject,
+	inProgressProjects,
+}: HeroOverviewProps) {
 	return (
 		<section className="hero-panel">
 			<div className="hero-copy">
@@ -91,8 +96,8 @@ export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
 								<strong>{snapshot.activeProjects}</strong>
 							</div>
 							<div>
-								<span>Completion globale</span>
-								<strong>{snapshot.completionRate}%</strong>
+								<span>In progress</span>
+								<strong>{inProgressProjects}</strong>
 							</div>
 						</div>
 					</BorderGlow>

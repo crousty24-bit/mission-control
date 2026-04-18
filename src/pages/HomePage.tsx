@@ -23,10 +23,17 @@ export function HomePage() {
 	}
 
 	const leadProject = projects[0] ?? null;
+	const inProgressProjects = projects.filter(
+		(project) => project.status === "in-progress",
+	).length;
 
 	return (
 		<div className="page-stack page-stack--home">
-			<HeroOverview snapshot={snapshot} leadProject={leadProject} />
+			<HeroOverview
+				snapshot={snapshot}
+				leadProject={leadProject}
+				inProgressProjects={inProgressProjects}
+			/>
 		</div>
 	);
 }
