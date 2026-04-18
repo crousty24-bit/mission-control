@@ -5,10 +5,12 @@
 [![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178c6?style=flat-square)](https://www.typescriptlang.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-local-003b57?style=flat-square)](https://www.sqlite.org/)
+[![App Version](https://img.shields.io/badge/App-1.0.0-111827?style=flat-square)](#mission-control)
+[![Status](https://img.shields.io/badge/Status-MVP-2f855a?style=flat-square)](#mission-control)
 
 Mission Control est un dashboard personnel desktop pour suivre au quotidien des projets, leurs tâches, leur progression et leurs archives, en environnement entièrement local.
 
-**Statut actuel : prototype MVP**
+**Statut actuel : MVP**
 
 Version de build desktop actuellement packagée : **0.1.0**.
 

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Objectif
-`Mission Control` est un dashboard personnel desktop pour suivre au quotidien des projets, des tâches et des agents locaux.
+`Mission Control` est un dashboard personnel desktop pour suivre au quotidien des projets, leurs tâches, leur progression et leurs archives.
 
 Le périmètre du projet reste volontairement limité :
 
@@ -13,6 +13,7 @@ Le périmètre du projet reste volontairement limité :
 
 ## État actuel
 
+- Produit en état **MVP fonctionnel**
 - Front React + Vite + TypeScript
 - Runtime produit desktop via Tauri 2
 - Commandes Rust + SQLite pour le mode desktop
@@ -21,8 +22,9 @@ Le périmètre du projet reste volontairement limité :
 - Routeur local explicite dans `src/lib/router.tsx`
 - Thème sombre à accent orange pastel
 - Landing avec résumé personnel et métriques projet
-- Dashboard avec pipeline active et page `Archives` en lecture seule
-- Module agents encore partiellement en développement côté produit
+- Dashboard avec pipeline active, résumé visuel des statuts projet et section `Statut utilisateur`
+- Page `Archives` en lecture seule pour les projets archivés
+- Todo List liée au projet actif
 
 ## Runtime cible
 
@@ -68,8 +70,9 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - les tâches pilotent la progression projet
 - un projet passe à `done` quand toutes ses tâches sont terminées
 - si une tâche redevient incomplète, un projet `done` repasse à `in-progress`
-- les agents locaux sont rattachés à un projet et à une tâche courante
+- l’archivage est distinct de la suppression ; seuls les projets `done` peuvent être archivés
 - le snapshot utilisateur agrège au minimum tâches accomplies, tâches restantes, projets en cours et completion globale
+- la landing réutilise ces métriques avec une première carte centrée sur la completion globale
 
 ## Scripts utiles
 
@@ -115,6 +118,7 @@ Selon le besoin :
 
 - garder un dashboard lisible, compact et exploitable au quotidien
 - préserver le thème sombre orange pastel
+- conserver l’accent orange désaturé actuel et les contrastes forts entre fonds et surfaces
 - éviter les effets visuels coûteux pour le runtime desktop
 - garder les overlays, dropdowns et modales compatibles avec Tauri/WebKitGTK
 - ne pas réintroduire des effets lourds de blur, shadow ou animation
@@ -132,4 +136,4 @@ Selon le besoin :
 - le fallback web nécessite que l’API Node soit lancée
 - `npm run tauri:dev` ouvert dans un navigateur n’est pas un mode supporté pour tester le transport desktop
 - la pile graphique Linux peut encore générer des warnings `libEGL` / `MESA` selon la machine
-- la partie `Agents locaux` doit encore être considérée comme une feature en développement
+- `npm run tauri:info` peut rester pendante après l’affichage du bloc environnement ; utiliser surtout ce bloc comme diagnostic utile
