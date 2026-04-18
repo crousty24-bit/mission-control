@@ -49,10 +49,26 @@ export function ProjectBoard({
 		() => projects.filter((project) => project.status === "done"),
 		[projects],
 	);
+	const archivableProjectIds = useMemo(
+		() => new Set(archivableProjects.map((project) => project.id)),
+		[archivableProjects],
+	);
+	const effectiveSelectedArchiveIds = useMemo(
+		() =>
+			selectedArchiveIds.filter((projectId) =>
+				archivableProjectIds.has(projectId),
+			),
+		[selectedArchiveIds, archivableProjectIds],
+	);
+	const isArchiveSelectionActive =
+		isArchiveSelectionMode && archivableProjects.length > 0;
 
 	const selectedArchiveProjects = useMemo(
-		() => projects.filter((project) => selectedArchiveIds.includes(project.id)),
-		[projects, selectedArchiveIds],
+		() =>
+			projects.filter((project) =>
+				effectiveSelectedArchiveIds.includes(project.id),
+			),
+		[projects, effectiveSelectedArchiveIds],
 	);
 
 	useEffect(() => {
@@ -77,24 +93,6 @@ export function ProjectBoard({
 		return () => document.removeEventListener("pointerdown", handlePointerDown);
 	}, []);
 
-	useEffect(() => {
-		if (!isArchiveSelectionMode) {
-			return;
-		}
-
-		const archivableIds = new Set(
-			archivableProjects.map((project) => project.id),
-		);
-		setSelectedArchiveIds((current) =>
-			current.filter((projectId) => archivableIds.has(projectId)),
-		);
-
-		if (archivableProjects.length === 0) {
-			setIsArchiveSelectionMode(false);
-			setIsArchiveConfirmOpen(false);
-		}
-	}, [archivableProjects, isArchiveSelectionMode]);
-
 	const resetArchiveSelection = () => {
 		setIsArchiveSelectionMode(false);
 		setSelectedArchiveIds([]);
@@ -110,14 +108,15 @@ export function ProjectBoard({
 	};
 
 	const handleArchiveAction = async () => {
-		if (!isArchiveSelectionMode) {
+		if (!isArchiveSelectionActive) {
 			setModalState(null);
 			setIsArchiveSelectionMode(true);
 			setSelectedArchiveIds([]);
+			setIsArchiveConfirmOpen(false);
 			return;
 		}
 
-		if (selectedArchiveIds.length === 0) {
+		if (effectiveSelectedArchiveIds.length === 0) {
 			return;
 		}
 
@@ -132,13 +131,13 @@ export function ProjectBoard({
 						<p className="eyebrow">Projets</p>
 						<h3>Pipeline en cours</h3>
 						<p className="section-note">
-							{isArchiveSelectionMode
+							{isArchiveSelectionActive
 								? "Sélectionne un ou plusieurs projets done, puis confirme leur archivage."
 								: "Les projets archivés quittent cette pipeline et restent consultables dans Archives."}
 						</p>
 					</div>
 					<div className="project-board__actions">
-						{isArchiveSelectionMode ? (
+						{isArchiveSelectionActive ? (
 							<>
 								<button
 									type="button"
@@ -153,7 +152,7 @@ export function ProjectBoard({
 									onClick={() => {
 										void handleArchiveAction();
 									}}
-									disabled={selectedArchiveIds.length === 0}
+									disabled={effectiveSelectedArchiveIds.length === 0}
 								>
 									Confirmer la sélection
 								</button>
@@ -189,8 +188,8 @@ export function ProjectBoard({
 						key={project.id}
 						project={project}
 						isSelected={project.id === selectedProjectId}
-						isArchiveSelectionMode={isArchiveSelectionMode}
-						isArchiveSelected={selectedArchiveIds.includes(project.id)}
+						isArchiveSelectionMode={isArchiveSelectionActive}
+						isArchiveSelected={effectiveSelectedArchiveIds.includes(project.id)}
 						onToggleArchiveSelection={toggleArchiveSelection}
 						onSelect={onSelectProject}
 						onOpenProject={(projectId) =>
@@ -245,7 +244,9 @@ export function ProjectBoard({
 				/>
 			) : null}
 
-			{isArchiveConfirmOpen ? (
+			{isArchiveConfirmOpen &&
+			isArchiveSelectionActive &&
+			effectiveSelectedArchiveIds.length > 0 ? (
 				<div className="modal-backdrop">
 					<section
 						className="modal-panel modal-panel--narrow"

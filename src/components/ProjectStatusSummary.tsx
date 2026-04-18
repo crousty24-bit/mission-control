@@ -119,48 +119,67 @@ export function ProjectStatusSummary({ projects }: ProjectStatusSummaryProps) {
 	const outerRadius = 96;
 	const innerRadius = 54;
 	const labelRadius = (outerRadius + innerRadius) / 2;
-	let currentAngle = -90;
-
-	const segments = summaryItems.map((item) => {
-		const sweepAngle =
-			trackedProjectCount === 0 ? 0 : (item.count / trackedProjectCount) * 360;
-		const startAngle = currentAngle;
-		const endAngle = startAngle + sweepAngle;
-		const middleAngle = startAngle + sweepAngle / 2;
-		currentAngle = endAngle;
-
-		const labelPoint = polarToCartesian(
-			center,
-			center,
-			labelRadius,
-			middleAngle,
-		);
-		const offsetPoint = polarToCartesian(0, 0, 8, middleAngle);
-
-		return {
-			...item,
-			percentage:
+	const { segments } = summaryItems.reduce<{
+		currentAngle: number;
+		segments: Array<
+			(typeof summaryItems)[number] & {
+				percentage: number;
+				path: string;
+				labelPoint: { x: number; y: number };
+				segmentStyle: CSSProperties;
+			}
+		>;
+	}>(
+		(accumulator, item) => {
+			const sweepAngle =
 				trackedProjectCount === 0
 					? 0
-					: Math.round((item.count / trackedProjectCount) * 100),
-			path:
-				item.count === 0
-					? ""
-					: describeDonutSegment(
-							center,
-							center,
-							outerRadius,
-							innerRadius,
-							startAngle,
-							endAngle,
-						),
-			labelPoint,
-			segmentStyle: {
-				"--segment-offset-x": `${offsetPoint.x}px`,
-				"--segment-offset-y": `${offsetPoint.y}px`,
-			} as CSSProperties,
-		};
-	});
+					: (item.count / trackedProjectCount) * 360;
+			const startAngle = accumulator.currentAngle;
+			const endAngle = startAngle + sweepAngle;
+			const middleAngle = startAngle + sweepAngle / 2;
+			const labelPoint = polarToCartesian(
+				center,
+				center,
+				labelRadius,
+				middleAngle,
+			);
+			const offsetPoint = polarToCartesian(0, 0, 8, middleAngle);
+
+			const segment = {
+				...item,
+				percentage:
+					trackedProjectCount === 0
+						? 0
+						: Math.round((item.count / trackedProjectCount) * 100),
+				path:
+					item.count === 0
+						? ""
+						: describeDonutSegment(
+								center,
+								center,
+								outerRadius,
+								innerRadius,
+								startAngle,
+								endAngle,
+							),
+				labelPoint,
+				segmentStyle: {
+					"--segment-offset-x": `${offsetPoint.x}px`,
+					"--segment-offset-y": `${offsetPoint.y}px`,
+				} as CSSProperties,
+			};
+
+			return {
+				currentAngle: endAngle,
+				segments: [...accumulator.segments, segment],
+			};
+		},
+		{
+			currentAngle: -90,
+			segments: [],
+		},
+	);
 
 	return (
 		<section className="section-block project-status-summary">
