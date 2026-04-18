@@ -957,6 +957,8 @@
 .project-status-summary {
 	display: grid;
 	gap: 1.4rem;
+	align-self: start;
+	height: fit-content;
 }
 
 .project-status-summary__layout {
