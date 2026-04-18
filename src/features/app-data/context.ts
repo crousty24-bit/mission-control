@@ -50,10 +50,9 @@ export interface AppDataContextValue {
 
 export const emptySnapshot: UserSnapshot = {
 	developer: "Developer",
-	sprint: "Current Sprint",
-	focusScore: 0,
-	completedThisWeek: 0,
 	activeProjects: 0,
+	completedTasks: 0,
+	remainingTasks: 0,
 	nextDeadline: "No deadline",
 	completionRate: 0,
 };

@@ -41,11 +41,11 @@ export function HeroOverview({ snapshot, leadProject }: HeroOverviewProps) {
 					colors={["#d46f45", "#f0c1ab", "#ffd7c1"]}
 				>
 					<div className="signal-grid__lead">
-						<span>Cadence actuelle</span>
-						<strong>{snapshot.focusScore}%</strong>
+						<span>Completion globale</span>
+						<strong>{snapshot.completionRate}%</strong>
 						<p>
-							{snapshot.completedThisWeek} tâches closes en local. Prochaine
-							échéance : {snapshot.nextDeadline}.
+							{snapshot.completedTasks} tâches accomplies.{" "}
+							{snapshot.remainingTasks} restantes dans les projets actifs.
 						</p>
 					</div>
 				</BorderGlow>

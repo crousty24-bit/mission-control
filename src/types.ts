@@ -93,17 +93,14 @@ export interface UpdateAgentInput {
 
 export interface UserSnapshot {
 	developer: string;
-	sprint: string;
-	focusScore: number;
-	completedThisWeek: number;
 	activeProjects: number;
+	completedTasks: number;
+	remainingTasks: number;
 	nextDeadline: string;
 	completionRate: number;
 }
 
 export interface UpdateUserSnapshotInput {
 	developer?: string;
-	sprint?: string;
-	focusScore?: number;
 	nextDeadline?: string;
 }
