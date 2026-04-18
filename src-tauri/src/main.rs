@@ -2,6 +2,7 @@
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -52,6 +53,7 @@ struct ProjectWithProgress {
     status: String,
     summary: String,
     milestone: String,
+    archived_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -80,10 +82,9 @@ struct LocalAgent {
 #[serde(rename_all = "camelCase")]
 struct UserSnapshot {
     developer: String,
-    sprint: String,
-    focus_score: i64,
-    completed_this_week: i64,
     active_projects: i64,
+    completed_tasks: i64,
+    remaining_tasks: i64,
     next_deadline: String,
     completion_rate: i64,
 }
@@ -153,8 +154,6 @@ struct CreateAgentInput {
 #[serde(rename_all = "camelCase")]
 struct UpdateUserSnapshotInput {
     developer: Option<String>,
-    sprint: Option<String>,
-    focus_score: Option<i64>,
     next_deadline: Option<String>,
 }
 
@@ -167,6 +166,27 @@ struct ProjectRecord {
     status: String,
     summary: String,
     milestone: String,
+    archived_at: Option<String>,
+}
+
+fn ensure_project_archive_column(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(projects)")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| error.to_string())?;
+    let columns = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    if !columns.iter().any(|column| column == "archived_at") {
+        connection
+            .execute("ALTER TABLE projects ADD COLUMN archived_at TEXT", [])
+            .map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
 }
 
 #[derive(Clone)]
@@ -253,14 +273,62 @@ fn seed_projects() -> Vec<SeedProject> {
 
 fn seed_tasks() -> Vec<SeedTask> {
     vec![
-        SeedTask { id: "t1", title: "Finaliser la navigation dashboard", done: true, project_id: "studio", urgency: "today" },
-        SeedTask { id: "t2", title: "Intégrer les menus statut et priorité", done: true, project_id: "studio", urgency: "today" },
-        SeedTask { id: "t3", title: "Valider la modal de création projet", done: false, project_id: "studio", urgency: "week" },
-        SeedTask { id: "t4", title: "Relire le flux checkout avec QA", done: true, project_id: "commerce", urgency: "week" },
-        SeedTask { id: "t5", title: "Corriger les retours de review sur le checkout", done: false, project_id: "commerce", urgency: "today" },
-        SeedTask { id: "t6", title: "Débloquer la collecte des logs agents", done: false, project_id: "infra", urgency: "today" },
-        SeedTask { id: "t7", title: "Mapper les erreurs runtime des workers", done: false, project_id: "infra", urgency: "week" },
-        SeedTask { id: "t8", title: "Préparer le patch de supervision locale", done: true, project_id: "infra", urgency: "week" },
+        SeedTask {
+            id: "t1",
+            title: "Finaliser la navigation dashboard",
+            done: true,
+            project_id: "studio",
+            urgency: "today",
+        },
+        SeedTask {
+            id: "t2",
+            title: "Intégrer les menus statut et priorité",
+            done: true,
+            project_id: "studio",
+            urgency: "today",
+        },
+        SeedTask {
+            id: "t3",
+            title: "Valider la modal de création projet",
+            done: false,
+            project_id: "studio",
+            urgency: "week",
+        },
+        SeedTask {
+            id: "t4",
+            title: "Relire le flux checkout avec QA",
+            done: true,
+            project_id: "commerce",
+            urgency: "week",
+        },
+        SeedTask {
+            id: "t5",
+            title: "Corriger les retours de review sur le checkout",
+            done: false,
+            project_id: "commerce",
+            urgency: "today",
+        },
+        SeedTask {
+            id: "t6",
+            title: "Débloquer la collecte des logs agents",
+            done: false,
+            project_id: "infra",
+            urgency: "today",
+        },
+        SeedTask {
+            id: "t7",
+            title: "Mapper les erreurs runtime des workers",
+            done: false,
+            project_id: "infra",
+            urgency: "week",
+        },
+        SeedTask {
+            id: "t8",
+            title: "Préparer le patch de supervision locale",
+            done: true,
+            project_id: "infra",
+            urgency: "week",
+        },
     ]
 }
 
@@ -313,8 +381,7 @@ fn desktop_db_path() -> Result<PathBuf, String> {
 }
 
 fn legacy_db_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../server/data/mission-control.sqlite")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../server/data/mission-control.sqlite")
 }
 
 fn open_connection() -> Result<Connection, String> {
@@ -353,6 +420,7 @@ fn init_database(connection: &Connection) -> Result<(), String> {
               status TEXT NOT NULL,
               summary TEXT NOT NULL,
               milestone TEXT NOT NULL,
+              archived_at TEXT,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
@@ -392,6 +460,8 @@ fn init_database(connection: &Connection) -> Result<(), String> {
         )
         .map_err(|error| error.to_string())?;
 
+    ensure_project_archive_column(connection)?;
+
     let project_count: i64 = connection
         .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
         .map_err(|error| error.to_string())?;
@@ -405,8 +475,8 @@ fn init_database(connection: &Connection) -> Result<(), String> {
     for project in seed_projects() {
         connection
             .execute(
-                "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![
                     project.id,
                     project.name,
@@ -416,6 +486,7 @@ fn init_database(connection: &Connection) -> Result<(), String> {
                     project.status,
                     project.summary,
                     project.milestone,
+                    Option::<String>::None,
                     timestamp,
                     timestamp
                 ],
@@ -478,10 +549,13 @@ fn init_database(connection: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-fn get_project_record(connection: &Connection, project_id: &str) -> Result<Option<ProjectRecord>, String> {
+fn get_project_record(
+    connection: &Connection,
+    project_id: &str,
+) -> Result<Option<ProjectRecord>, String> {
     connection
         .query_row(
-            "SELECT name, client, stack, priority, status, summary, milestone FROM projects WHERE id = ?1",
+            "SELECT name, client, stack, priority, status, summary, milestone, archived_at FROM projects WHERE id = ?1",
             [project_id],
             |row| {
                 Ok(ProjectRecord {
@@ -492,6 +566,7 @@ fn get_project_record(connection: &Connection, project_id: &str) -> Result<Optio
                     status: row.get(4)?,
                     summary: row.get(5)?,
                     milestone: row.get(6)?,
+                    archived_at: row.get(7)?,
                 })
             },
         )
@@ -615,18 +690,40 @@ fn get_user_snapshot_record(connection: &Connection) -> Result<Option<UserSnapsh
 }
 
 fn get_completion_rate(connection: &Connection) -> Result<i64, String> {
-    let tasks = list_tasks(connection, None)?;
-    if tasks.is_empty() {
+    let (completed_tasks, remaining_tasks) = get_active_task_stats(connection)?;
+    let total_tasks = completed_tasks + remaining_tasks;
+    if total_tasks == 0 {
         return Ok(0);
     }
 
-    let done_count = tasks.iter().filter(|task| task.done).count() as f64;
-    let total_count = tasks.len() as f64;
-    Ok(((done_count / total_count) * 100.0).round() as i64)
+    Ok((((completed_tasks as f64) / (total_tasks as f64)) * 100.0).round() as i64)
+}
+
+fn get_active_task_stats(connection: &Connection) -> Result<(i64, i64), String> {
+    let mut statement = connection
+        .prepare("SELECT id FROM projects WHERE archived_at IS NULL")
+        .map_err(|error| error.to_string())?;
+    let active_project_ids = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<HashSet<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    let tasks = list_tasks(connection, None)?
+        .into_iter()
+        .filter(|task| active_project_ids.contains(&task.project_id))
+        .collect::<Vec<_>>();
+    let completed_tasks = tasks.iter().filter(|task| task.done).count() as i64;
+    let remaining_tasks = tasks.iter().filter(|task| !task.done).count() as i64;
+
+    Ok((completed_tasks, remaining_tasks))
 }
 
 fn get_project_progress(project_id: &str, tasks: &[TaskItem]) -> i64 {
-    let related_tasks: Vec<&TaskItem> = tasks.iter().filter(|task| task.project_id == project_id).collect();
+    let related_tasks: Vec<&TaskItem> = tasks
+        .iter()
+        .filter(|task| task.project_id == project_id)
+        .collect();
     if related_tasks.is_empty() {
         return 0;
     }
@@ -636,7 +733,8 @@ fn get_project_progress(project_id: &str, tasks: &[TaskItem]) -> i64 {
 }
 
 fn sync_project_status(connection: &Connection, project_id: &str) -> Result<(), String> {
-    let current = get_project_record(connection, project_id)?.ok_or_else(|| "Project not found".to_string())?;
+    let current = get_project_record(connection, project_id)?
+        .ok_or_else(|| "Project not found".to_string())?;
     let tasks = list_tasks(connection, Some(project_id))?;
 
     if tasks.is_empty() {
@@ -666,11 +764,31 @@ fn sync_project_status(connection: &Connection, project_id: &str) -> Result<(), 
 }
 
 fn get_projects_view(connection: &Connection) -> Result<Vec<ProjectWithProgress>, String> {
+    get_projects_view_by_archive_state(connection, false)
+}
+
+fn get_archived_projects_view(connection: &Connection) -> Result<Vec<ProjectWithProgress>, String> {
+    get_projects_view_by_archive_state(connection, true)
+}
+
+fn get_projects_view_by_archive_state(
+    connection: &Connection,
+    archived: bool,
+) -> Result<Vec<ProjectWithProgress>, String> {
     let tasks = list_tasks(connection, None)?;
+    let query = if archived {
+        "SELECT id, name, client, stack, priority, status, summary, milestone, archived_at
+         FROM projects
+         WHERE archived_at IS NOT NULL
+         ORDER BY archived_at DESC, created_at DESC"
+    } else {
+        "SELECT id, name, client, stack, priority, status, summary, milestone, archived_at
+         FROM projects
+         WHERE archived_at IS NULL
+         ORDER BY created_at ASC"
+    };
     let mut statement = connection
-        .prepare(
-            "SELECT id, name, client, stack, priority, status, summary, milestone FROM projects ORDER BY created_at ASC",
-        )
+        .prepare(query)
         .map_err(|error| error.to_string())?;
 
     let rows = statement
@@ -688,6 +806,7 @@ fn get_projects_view(connection: &Connection) -> Result<Vec<ProjectWithProgress>
                 status,
                 summary: row.get(6)?,
                 milestone: row.get(7)?,
+                archived_at: row.get(8)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -696,7 +815,10 @@ fn get_projects_view(connection: &Connection) -> Result<Vec<ProjectWithProgress>
         .map_err(|error| error.to_string())
 }
 
-fn get_project_view(connection: &Connection, project_id: &str) -> Result<ProjectWithProgress, String> {
+fn get_project_view(
+    connection: &Connection,
+    project_id: &str,
+) -> Result<ProjectWithProgress, String> {
     get_projects_view(connection)?
         .into_iter()
         .find(|project| project.id == project_id)
@@ -704,16 +826,17 @@ fn get_project_view(connection: &Connection, project_id: &str) -> Result<Project
 }
 
 fn get_user_snapshot_view(connection: &Connection) -> Result<UserSnapshot, String> {
-    let record = get_user_snapshot_record(connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
+    let record =
+        get_user_snapshot_record(connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
     let completion_rate = get_completion_rate(connection)?;
     let active_projects = get_projects_view(connection)?.len() as i64;
+    let (completed_tasks, remaining_tasks) = get_active_task_stats(connection)?;
 
     Ok(UserSnapshot {
         developer: record.developer,
-        sprint: record.sprint,
-        focus_score: record.focus_score,
-        completed_this_week: ((completion_rate as f64 / 100.0) * 12.0).round() as i64,
         active_projects,
+        completed_tasks,
+        remaining_tasks,
         next_deadline: record.next_deadline,
         completion_rate,
     })
@@ -726,6 +849,12 @@ fn get_projects() -> Result<Vec<ProjectWithProgress>, String> {
 }
 
 #[tauri::command]
+fn get_archived_projects() -> Result<Vec<ProjectWithProgress>, String> {
+    let connection = open_connection()?;
+    get_archived_projects_view(&connection)
+}
+
+#[tauri::command]
 fn create_project(input: CreateProjectInput) -> Result<ProjectWithProgress, String> {
     let connection = open_connection()?;
     let timestamp = now_string();
@@ -735,8 +864,8 @@ fn create_project(input: CreateProjectInput) -> Result<ProjectWithProgress, Stri
 
     connection
         .execute(
-            "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 project_id,
                 name,
@@ -746,6 +875,7 @@ fn create_project(input: CreateProjectInput) -> Result<ProjectWithProgress, Stri
                 input.status,
                 if summary.is_empty() { "Aucun résumé pour le moment.".to_string() } else { summary },
                 if input.milestone.trim().is_empty() { "Sans échéance définie".to_string() } else { input.milestone.trim().to_string() },
+                Option::<String>::None,
                 timestamp,
                 timestamp
             ],
@@ -756,9 +886,13 @@ fn create_project(input: CreateProjectInput) -> Result<ProjectWithProgress, Stri
 }
 
 #[tauri::command]
-fn update_project(project_id: String, changes: UpdateProjectInput) -> Result<ProjectWithProgress, String> {
+fn update_project(
+    project_id: String,
+    changes: UpdateProjectInput,
+) -> Result<ProjectWithProgress, String> {
     let connection = open_connection()?;
-    let current = get_project_record(&connection, &project_id)?.ok_or_else(|| "Project not found".to_string())?;
+    let current = get_project_record(&connection, &project_id)?
+        .ok_or_else(|| "Project not found".to_string())?;
     let timestamp = now_string();
     let next_stack = changes.stack.unwrap_or_else(|| parse_stack(&current.stack));
     let next_name = changes
@@ -767,25 +901,41 @@ fn update_project(project_id: String, changes: UpdateProjectInput) -> Result<Pro
         .unwrap_or(current.name);
     let next_client = changes
         .client
-        .map(|value| if value.trim().is_empty() { "Projet personnel".to_string() } else { value.trim().to_string() })
+        .map(|value| {
+            if value.trim().is_empty() {
+                "Projet personnel".to_string()
+            } else {
+                value.trim().to_string()
+            }
+        })
         .unwrap_or(current.client);
     let next_summary = changes
         .summary
         .map(|value| {
             let summary = value.trim().chars().take(96).collect::<String>();
-            if summary.is_empty() { "Aucun résumé pour le moment.".to_string() } else { summary }
+            if summary.is_empty() {
+                "Aucun résumé pour le moment.".to_string()
+            } else {
+                summary
+            }
         })
         .unwrap_or(current.summary);
     let next_milestone = changes
         .milestone
-        .map(|value| if value.trim().is_empty() { "Sans échéance définie".to_string() } else { value.trim().to_string() })
+        .map(|value| {
+            if value.trim().is_empty() {
+                "Sans échéance définie".to_string()
+            } else {
+                value.trim().to_string()
+            }
+        })
         .unwrap_or(current.milestone);
 
     connection
         .execute(
             "UPDATE projects
-             SET name = ?1, client = ?2, stack = ?3, priority = ?4, status = ?5, summary = ?6, milestone = ?7, updated_at = ?8
-             WHERE id = ?9",
+             SET name = ?1, client = ?2, stack = ?3, priority = ?4, status = ?5, summary = ?6, milestone = ?7, archived_at = ?8, updated_at = ?9
+             WHERE id = ?10",
             params![
                 next_name,
                 next_client,
@@ -794,6 +944,7 @@ fn update_project(project_id: String, changes: UpdateProjectInput) -> Result<Pro
                 changes.status.unwrap_or(current.status),
                 next_summary,
                 next_milestone,
+                current.archived_at,
                 timestamp,
                 project_id
             ],
@@ -810,6 +961,42 @@ fn delete_project(project_id: String) -> Result<(), String> {
     connection
         .execute("DELETE FROM projects WHERE id = ?1", [project_id])
         .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn archive_projects(project_ids: Vec<String>) -> Result<(), String> {
+    let connection = open_connection()?;
+    let unique_project_ids = project_ids
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    if unique_project_ids.is_empty() {
+        return Err("No projects selected for archive".to_string());
+    }
+
+    for project_id in &unique_project_ids {
+        let project = get_project_record(&connection, project_id)?
+            .ok_or_else(|| "Project not found".to_string())?;
+        if project.archived_at.is_some() || project.status != "done" {
+            return Err("Only done projects can be archived".to_string());
+        }
+    }
+
+    let timestamp = now_string();
+    for project_id in &unique_project_ids {
+        connection
+            .execute(
+                "UPDATE projects
+                 SET archived_at = ?1, updated_at = ?2
+                 WHERE id = ?3",
+                params![timestamp, timestamp, project_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
 
     Ok(())
 }
@@ -852,8 +1039,11 @@ fn create_task(input: CreateTaskInput) -> Result<TaskItem, String> {
 #[tauri::command]
 fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, String> {
     let connection = open_connection()?;
-    let current = get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
-    let next_project_id = changes.project_id.unwrap_or_else(|| current.project_id.clone());
+    let current =
+        get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
+    let next_project_id = changes
+        .project_id
+        .unwrap_or_else(|| current.project_id.clone());
 
     if get_project_record(&connection, &next_project_id)?.is_none() {
         return Err("Project not found".to_string());
@@ -866,7 +1056,11 @@ fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, St
              WHERE id = ?6",
             params![
                 changes.title.unwrap_or(current.title),
-                if changes.done.unwrap_or(current.done) { 1 } else { 0 },
+                if changes.done.unwrap_or(current.done) {
+                    1
+                } else {
+                    0
+                },
                 next_project_id,
                 changes.urgency.unwrap_or(current.urgency),
                 now_string(),
@@ -882,7 +1076,8 @@ fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, St
 #[tauri::command]
 fn delete_task(task_id: String) -> Result<(), String> {
     let connection = open_connection()?;
-    let current = get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
+    let current =
+        get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
 
     connection
         .execute("DELETE FROM tasks WHERE id = ?1", [task_id])
@@ -929,8 +1124,11 @@ fn create_agent(input: CreateAgentInput) -> Result<LocalAgent, String> {
 #[tauri::command]
 fn update_agent(agent_id: String, changes: UpdateAgentInput) -> Result<LocalAgent, String> {
     let connection = open_connection()?;
-    let current = get_agent_record(&connection, &agent_id)?.ok_or_else(|| "Agent not found".to_string())?;
-    let next_project_id = changes.project_id.unwrap_or_else(|| current.project_id.clone());
+    let current =
+        get_agent_record(&connection, &agent_id)?.ok_or_else(|| "Agent not found".to_string())?;
+    let next_project_id = changes
+        .project_id
+        .unwrap_or_else(|| current.project_id.clone());
 
     if get_project_record(&connection, &next_project_id)?.is_none() {
         return Err("Project not found".to_string());
@@ -965,7 +1163,8 @@ fn get_user_snapshot() -> Result<UserSnapshot, String> {
 #[tauri::command]
 fn update_user_snapshot(changes: UpdateUserSnapshotInput) -> Result<UserSnapshot, String> {
     let connection = open_connection()?;
-    let current = get_user_snapshot_record(&connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
+    let current =
+        get_user_snapshot_record(&connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
 
     connection
         .execute(
@@ -973,8 +1172,8 @@ fn update_user_snapshot(changes: UpdateUserSnapshotInput) -> Result<UserSnapshot
              SET developer = ?1, sprint = ?2, focus_score = ?3, next_deadline = ?4, updated_at = ?5",
             params![
                 changes.developer.unwrap_or(current.developer),
-                changes.sprint.unwrap_or(current.sprint),
-                changes.focus_score.unwrap_or(current.focus_score),
+                current.sprint,
+                current.focus_score,
                 changes.next_deadline.unwrap_or(current.next_deadline),
                 now_string()
             ],
@@ -990,9 +1189,11 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_projects,
+            get_archived_projects,
             create_project,
             update_project,
             delete_project,
+            archive_projects,
             get_tasks,
             create_task,
             update_task,

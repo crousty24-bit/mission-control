@@ -5,10 +5,12 @@
 [![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178c6?style=flat-square)](https://www.typescriptlang.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-local-003b57?style=flat-square)](https://www.sqlite.org/)
+[![App Version](https://img.shields.io/badge/App-1.0.0-111827?style=flat-square)](#mission-control)
+[![Status](https://img.shields.io/badge/Status-MVP-2f855a?style=flat-square)](#mission-control)
 
-Mission Control est un dashboard personnel desktop pour suivre au quotidien des projets, leurs tâches, leur progression et des agents locaux, en environnement entièrement local.
+Mission Control est un dashboard personnel desktop pour suivre au quotidien des projets, leurs tâches, leur progression et leurs archives, en environnement entièrement local.
 
-**Statut actuel : prototype MVP**
+**Statut actuel : MVP**
 
 Version de build desktop actuellement packagée : **0.1.0**.
 
@@ -24,10 +26,11 @@ Le projet vise un cas d’usage unique :
 
 Mission Control fournit :
 
-- une landing page personnelle avec métriques de travail
+- une landing page personnelle avec résumé de progression et métriques projet
 - un dashboard projets avec statut, priorité et progression réelle
+- un mode d’archivage pour les projets `done`
+- une page `Archives` en lecture seule pour les projets retirés du flux actif
 - une Todo List liée au projet actif
-- une section d’agents locaux rattachés aux projets
 - une persistance SQLite locale
 - un packaging desktop Tauri pour Linux
 
@@ -37,8 +40,8 @@ Mission Control fournit :
 - thème sombre à accent orange pastel
 - progression projet calculée à partir des tâches
 - passage automatique à `done` quand toutes les tâches sont terminées
-- édition rapide des projets, tâches et agents
-- module agents encore partiellement en développement
+- archivage distinct de la suppression pour sortir un projet terminé de la pipeline active
+- édition rapide des projets et tâches
 - fallback web local conservé pour le développement
 
 ## Captures
@@ -51,7 +54,6 @@ Mission Control fournit :
 
 ![Dashboard projects](docs/media/dashboard-projects.png)
 ![Dashboard tasks](docs/media/dashboard-tasks.png)
-![Dashboard agents](docs/media/dashboard-agents.png)
 
 ### Project Flows
 
@@ -60,11 +62,6 @@ Mission Control fournit :
 ![Project modal - show](docs/media/project-modal-show.png)
 ![Project card - status dropdown](docs/media/project-card-status-dropdown.png)
 ![Project card - priority dropdown](docs/media/project-card-priority-dropdown.png)
-
-### Agent Flows
-
-![Agent modal - create](docs/media/agent-modal-create.png)
-![Agent modal - show](docs/media/agent-modal-show.png)
 
 ## Stack
 
@@ -86,6 +83,13 @@ Mission Control fournit :
 
 Le runtime produit cible est le desktop Tauri.  
 Le backend Node reste conservé pour le développement web local et les vérifications de fallback.
+
+Le snapshot utilisateur affiché dans le dashboard et sur la landing agrège désormais :
+
+- tâches accomplies
+- tâches restantes
+- projets en cours
+- completion globale
 
 ## Prérequis
 
@@ -213,6 +217,11 @@ npm run app
 npm run db:reset
 npm run build
 npm run build:server
+npm run lint
+npm run lint:eslint
+npm run lint:biome
+npm run lint:biome:files -- src/main.tsx src/api/tauriRuntime.ts
+npm run lint:biome:write:files -- src/main.tsx src/api/tauriRuntime.ts
 npm run tauri:dev
 npm run tauri:build
 npm run tauri:info
@@ -224,11 +233,28 @@ Checks recommandés :
 
 ```bash
 npm run lint
+npm run lint:eslint
+npm run lint:biome
 npm run build
 npm run build:server
 npm run tauri:info
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
+
+Procédure Biome pour les changements courants :
+
+- utilise `npm run lint:biome:files -- <fichiers_modifiés>` avant de conclure une tâche
+- applique les corrections sûres avec `npm run lint:biome:write:files -- <fichiers_modifiés>`
+- traite ensuite manuellement les diagnostics `lint/*` restants sur le même périmètre
+- réserve `npm run lint:biome` à l’audit global ou aux lots dédiés de normalisation
+- `npm run lint:eslint` reste actif temporairement comme contrôle secondaire pendant la transition
+
+## Logique produit récente
+
+- `Completion globale` reste calculée à partir des tâches terminées sur les projets non archivés
+- `Projets en cours` correspond à tous les projets non archivés visibles dans le board, y compris les `done`
+- un projet archivé disparaît du dashboard actif et reste consultable dans la page `Archives`
+- l’archivage n’est autorisé que pour un projet en statut `done`
 
 ## Notes Linux / Tauri
 
@@ -258,7 +284,6 @@ Le mode `tauri:dev` reste un mode debug. Le rendu release via package `.deb` est
 - **le projet est pensé pour un usage personnel local et mono-utilisateur**
 - **la persistance desktop Tauri est locale et hors du repo**
 - **la base SQLite du fallback web ne doit pas être versionnée**
-- **la partie `Agents locaux` reste volontairement signalée comme incomplète côté produit**
 
 ## Mode Pédagogique avec `tasks-review.md`
 
@@ -295,7 +320,6 @@ Le principe est générique : il peut s’appliquer à n’importe quel autre pr
 | Finition graphique Linux | Ajuster encore le rendu selon la machine cible et la pile WebKitGTK / Mesa. |
 | Fallback web | Continuer à simplifier la couche Node/SQLite conservée pour le développement. |
 | Scope produit | Garder le dashboard compact, local et strictement personnel. |
-| Agents IA | Relier un agent IA à la section `Agents locaux` pour mettre à jour automatiquement le statut `active` / `idle`. |
 
 ## Licence
 

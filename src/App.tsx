@@ -1,23 +1,25 @@
-import { BrowserRouter, Route, Routes } from './lib/router'
-import { AppShell } from './components/AppShell'
-import { AppDataProvider } from './features/app-data/AppDataProvider'
-import { DashboardPage } from './pages/DashboardPage'
-import { HomePage } from './pages/HomePage'
-import './App.css'
+import { AppShell } from "./components/AppShell";
+import { AppDataProvider } from "./features/app-data/AppDataProvider";
+import { BrowserRouter, Route, Routes } from "./lib/router";
+import { ArchivesPage } from "./pages/ArchivesPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { HomePage } from "./pages/HomePage";
+import "./App.css";
 
 function App() {
-  return (
-    <AppDataProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route index element={<HomePage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AppDataProvider>
-  )
+	return (
+		<AppDataProvider>
+			<BrowserRouter>
+				<Routes>
+					<Route element={<AppShell />}>
+						<Route index element={<HomePage />} />
+						<Route path="/dashboard" element={<DashboardPage />} />
+						<Route path="/archives" element={<ArchivesPage />} />
+					</Route>
+				</Routes>
+			</BrowserRouter>
+		</AppDataProvider>
+	);
 }
 
-export default App
+export default App;

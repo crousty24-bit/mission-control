@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Objectif
-`Mission Control` est un dashboard personnel desktop pour suivre au quotidien des projets, des tâches et des agents locaux.
+`Mission Control` est un dashboard personnel desktop pour suivre au quotidien des projets, leurs tâches, leur progression et leurs archives.
 
 Le périmètre du projet reste volontairement limité :
 
@@ -13,6 +13,7 @@ Le périmètre du projet reste volontairement limité :
 
 ## État actuel
 
+- Produit en état **MVP fonctionnel**
 - Front React + Vite + TypeScript
 - Runtime produit desktop via Tauri 2
 - Commandes Rust + SQLite pour le mode desktop
@@ -20,7 +21,10 @@ Le périmètre du projet reste volontairement limité :
 - Couche data front unifiée dans `src/api`
 - Routeur local explicite dans `src/lib/router.tsx`
 - Thème sombre à accent orange pastel
-- Module agents encore partiellement en développement côté produit
+- Landing avec résumé personnel et métriques projet
+- Dashboard avec pipeline active, résumé visuel des statuts projet et section `Statut utilisateur`
+- Page `Archives` en lecture seule pour les projets archivés
+- Todo List liée au projet actif
 
 ## Runtime cible
 
@@ -52,16 +56,23 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - garder la logique métier dérivée côté backend local
 - garder le front agnostique au transport autant que possible
 - éviter les abstractions supplémentaires sans gain concret
+- utiliser `Biome` via `biome.json` comme référence de formatage et de lint pour les fichiers touchés
+- avant de conclure un changement front/Node/TS, exécuter au minimum `npm run lint:biome:files -- <fichiers_modifiés>` ou `npm run lint:biome` si le périmètre est large
+- appliquer les corrections sûres avec `npm run lint:biome:write:files -- <fichiers_modifiés>` avant de traiter manuellement les diagnostics restants
+- ne pas lancer de reformatage massif hors périmètre demandé ; `Biome --write` sur `.` est réservé aux lots dédiés de normalisation
+- conserver `ESLint` comme contrôle secondaire via `npm run lint:eslint` tant que la transition Biome n’est pas terminée
 
 ## Données et métier
 
 - les projets exposent : nom, client, résumé, milestone, priorité, statut et progression
 - le nom du projet est limité à 20 caractères
+- un projet peut être archivé via `archivedAt` ; un projet archivé sort des vues actives et bascule sur la page `Archives`
 - les tâches pilotent la progression projet
 - un projet passe à `done` quand toutes ses tâches sont terminées
 - si une tâche redevient incomplète, un projet `done` repasse à `in-progress`
-- les agents locaux sont rattachés à un projet et à une tâche courante
-- le snapshot utilisateur agrège au minimum cadence actuelle, projets actifs et completion globale
+- l’archivage est distinct de la suppression ; seuls les projets `done` peuvent être archivés
+- le snapshot utilisateur agrège au minimum tâches accomplies, tâches restantes, projets en cours et completion globale
+- la landing réutilise ces métriques avec une première carte centrée sur la completion globale
 
 ## Scripts utiles
 
@@ -78,10 +89,17 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - `npm run build:server`
 - `npm run build:app`
 - `npm run lint`
+- `npm run lint:eslint`
+- `npm run lint:biome`
+- `npm run lint:biome:files -- <fichiers_modifiés>`
+- `npm run lint:biome:write`
+- `npm run lint:biome:write:files -- <fichiers_modifiés>`
 
 ## Vérification minimale
 
 - `npm run lint`
+- `npm run lint:eslint`
+- `npm run lint:biome`
 - `npm run build`
 - `npm run build:server`
 - `cargo check --manifest-path src-tauri/Cargo.toml`
@@ -90,6 +108,9 @@ L’AppImage n’est plus le bundle par défaut du projet.
 
 Selon le besoin :
 
+- `npm run lint:biome:files -- <fichiers_modifiés>` pour valider un changement ciblé sans bruit externe
+- `npm run lint:biome:write:files -- <fichiers_modifiés>` pour appliquer uniquement les corrections sûres sur le périmètre modifié
+- `npm run lint:biome` pour l’audit global du scope maintenu
 - `npm run tauri:build` pour vérifier le packaging `.deb`
 - `npm run db:reset` si la base web fallback doit être réinitialisée
 
@@ -97,6 +118,7 @@ Selon le besoin :
 
 - garder un dashboard lisible, compact et exploitable au quotidien
 - préserver le thème sombre orange pastel
+- conserver l’accent orange désaturé actuel et les contrastes forts entre fonds et surfaces
 - éviter les effets visuels coûteux pour le runtime desktop
 - garder les overlays, dropdowns et modales compatibles avec Tauri/WebKitGTK
 - ne pas réintroduire des effets lourds de blur, shadow ou animation
@@ -114,4 +136,4 @@ Selon le besoin :
 - le fallback web nécessite que l’API Node soit lancée
 - `npm run tauri:dev` ouvert dans un navigateur n’est pas un mode supporté pour tester le transport desktop
 - la pile graphique Linux peut encore générer des warnings `libEGL` / `MESA` selon la machine
-- la partie `Agents locaux` doit encore être considérée comme une feature en développement
+- `npm run tauri:info` peut rester pendante après l’affichage du bloc environnement ; utiliser surtout ce bloc comme diagnostic utile
