@@ -20,6 +20,8 @@ Le périmètre du projet reste volontairement limité :
 - Couche data front unifiée dans `src/api`
 - Routeur local explicite dans `src/lib/router.tsx`
 - Thème sombre à accent orange pastel
+- Landing avec résumé personnel et métriques projet
+- Dashboard avec pipeline active et page `Archives` en lecture seule
 - Module agents encore partiellement en développement côté produit
 
 ## Runtime cible
@@ -62,11 +64,12 @@ L’AppImage n’est plus le bundle par défaut du projet.
 
 - les projets exposent : nom, client, résumé, milestone, priorité, statut et progression
 - le nom du projet est limité à 20 caractères
+- un projet peut être archivé via `archivedAt` ; un projet archivé sort des vues actives et bascule sur la page `Archives`
 - les tâches pilotent la progression projet
 - un projet passe à `done` quand toutes ses tâches sont terminées
 - si une tâche redevient incomplète, un projet `done` repasse à `in-progress`
 - les agents locaux sont rattachés à un projet et à une tâche courante
-- le snapshot utilisateur agrège au minimum cadence actuelle, projets actifs et completion globale
+- le snapshot utilisateur agrège au minimum tâches accomplies, tâches restantes, projets en cours et completion globale
 
 ## Scripts utiles
 
