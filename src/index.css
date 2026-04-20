@@ -1,16 +1,18 @@
 :root {
-	--bg: #090605;
-	--bg-elevated: #140d0a;
-	--panel: #1b120e;
-	--panel-strong: #291913;
+	--bg: #050607;
+	--bg-elevated: #0b0d10;
+	--panel: #111419;
+	--panel-strong: #171b21;
+	--surface-soft: rgba(255, 255, 255, 0.024);
+	--surface-strong: rgba(255, 255, 255, 0.04);
 	--text-main: #fff7f3;
-	--text-muted: #dec5b6;
+	--text-muted: #c5b8ae;
 	--accent: #d46f45;
-	--accent-soft: #f0c1ab;
+	--accent-soft: #ebb499;
 	--accent-strong: #e07d53;
-	--border-soft: rgba(225, 100, 40, 0.24);
-	--border-strong: rgba(255, 132, 71, 0.44);
-	--surface-glow: rgba(225, 100, 40, 0.18);
+	--border-soft: rgba(255, 255, 255, 0.08);
+	--border-strong: rgba(255, 255, 255, 0.16);
+	--surface-glow: rgba(225, 100, 40, 0.14);
 	--status-progress: #f08f58;
 	--status-review: #ffd6a6;
 	--status-blocked: #ff8a65;
@@ -48,6 +50,16 @@ body {
 	min-width: 320px;
 	background: var(--bg);
 	color: var(--text-main);
+}
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+	outline: 2px solid rgba(255, 132, 71, 0.72);
+	outline-offset: 2px;
 }
 
 a,
