@@ -10,6 +10,7 @@ function mapProject(row) {
 		status: row.status,
 		summary: row.summary,
 		milestone: row.milestone,
+		orderIndex: row.order_index,
 		archivedAt: row.archived_at,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
@@ -23,8 +24,8 @@ function buildInClause(projectIds) {
 function listProjectsByArchiveState(archived) {
 	const db = getDb();
 	const query = archived
-		? "SELECT * FROM projects WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, created_at DESC"
-		: "SELECT * FROM projects WHERE archived_at IS NULL ORDER BY created_at ASC";
+		? "SELECT * FROM projects WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, order_index ASC, created_at DESC"
+		: "SELECT * FROM projects WHERE archived_at IS NULL ORDER BY order_index ASC, created_at ASC";
 	const rows = db.prepare(query).all();
 	return rows.map(mapProject);
 }
@@ -59,8 +60,8 @@ export function getProjectsByIds(projectIds) {
 export function insertProject(project) {
 	const db = getDb();
 	db.prepare(`
-    INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, order_index, archived_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
 		project.id,
 		project.name,
@@ -70,6 +71,7 @@ export function insertProject(project) {
 		project.status,
 		project.summary,
 		project.milestone,
+		project.orderIndex,
 		project.archivedAt,
 		project.createdAt,
 		project.updatedAt,
@@ -91,7 +93,7 @@ export function updateProject(projectId, changes) {
 	getDb()
 		.prepare(`
     UPDATE projects
-    SET name = ?, client = ?, stack = ?, priority = ?, status = ?, summary = ?, milestone = ?, archived_at = ?, updated_at = ?
+    SET name = ?, client = ?, stack = ?, priority = ?, status = ?, summary = ?, milestone = ?, order_index = ?, archived_at = ?, updated_at = ?
     WHERE id = ?
   `)
 		.run(
@@ -102,6 +104,7 @@ export function updateProject(projectId, changes) {
 			nextProject.status,
 			nextProject.summary,
 			nextProject.milestone,
+			nextProject.orderIndex,
 			nextProject.archivedAt,
 			nextProject.updatedAt,
 			projectId,
@@ -132,4 +135,32 @@ export function archiveProjects(projectIds, archivedAt) {
 		.run(archivedAt, updatedAt, ...projectIds);
 
 	return result.changes;
+}
+
+export function getNextProjectOrderIndex() {
+	const row = getDb()
+		.prepare(
+			"SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order_index FROM projects WHERE archived_at IS NULL",
+		)
+		.get();
+	return row.next_order_index;
+}
+
+export function reorderProjects(projectIds) {
+	const db = getDb();
+	const updateProjectOrder = db.prepare(
+		"UPDATE projects SET order_index = ?, updated_at = ? WHERE id = ?",
+	);
+	const updatedAt = new Date().toISOString();
+
+	db.exec("BEGIN");
+	try {
+		for (const [index, projectId] of projectIds.entries()) {
+			updateProjectOrder.run(index, updatedAt, projectId);
+		}
+		db.exec("COMMIT");
+	} catch (error) {
+		db.exec("ROLLBACK");
+		throw error;
+	}
 }

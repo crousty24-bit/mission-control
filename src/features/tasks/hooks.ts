@@ -13,12 +13,20 @@ export function useTasks(projectId?: string) {
 }
 
 export function useTaskActions() {
-	const { createTask, deleteTask, tasks, updateTask, isMutating } =
-		useAppData();
+	const {
+		createTask,
+		deleteTask,
+		reorderTasks: persistTaskOrder,
+		tasks,
+		updateTask,
+		isMutating,
+	} = useAppData();
 
 	return {
 		isMutating,
 		createTask: (input: CreateTaskInput) => createTask(input),
+		reorderTasks: (projectId: string, taskIds: string[]) =>
+			persistTaskOrder(projectId, taskIds),
 		toggleTask: async (taskId: string) => {
 			const task = tasks.find((item) => item.id === taskId);
 			if (!task) {

@@ -66,6 +66,15 @@ struct TaskItem {
     urgency: String,
 }
 
+#[derive(Clone)]
+struct TaskRecord {
+    title: String,
+    done: bool,
+    project_id: String,
+    urgency: String,
+    order_index: i64,
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct LocalAgent {
@@ -166,12 +175,13 @@ struct ProjectRecord {
     status: String,
     summary: String,
     milestone: String,
+    order_index: i64,
     archived_at: Option<String>,
 }
 
-fn ensure_project_archive_column(connection: &Connection) -> Result<(), String> {
+fn has_column(connection: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
     let mut statement = connection
-        .prepare("PRAGMA table_info(projects)")
+        .prepare(&format!("PRAGMA table_info({table_name})"))
         .map_err(|error| error.to_string())?;
     let rows = statement
         .query_map([], |row| row.get::<_, String>(1))
@@ -180,10 +190,81 @@ fn ensure_project_archive_column(connection: &Connection) -> Result<(), String> 
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string())?;
 
-    if !columns.iter().any(|column| column == "archived_at") {
+    Ok(columns.iter().any(|column| column == column_name))
+}
+
+fn ensure_column(
+    connection: &Connection,
+    table_name: &str,
+    column_name: &str,
+    definition: &str,
+) -> Result<bool, String> {
+    if has_column(connection, table_name, column_name)? {
+        return Ok(false);
+    }
+
+    connection
+        .execute(
+            &format!("ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}"),
+            [],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(true)
+}
+
+fn hydrate_project_order_indexes(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id FROM projects WHERE archived_at IS NULL ORDER BY created_at ASC, id ASC",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    for (index, project_id) in rows.iter().enumerate() {
         connection
-            .execute("ALTER TABLE projects ADD COLUMN archived_at TEXT", [])
+            .execute(
+                "UPDATE projects SET order_index = ?1 WHERE id = ?2",
+                params![index as i64, project_id],
+            )
             .map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn hydrate_task_order_indexes(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, project_id FROM tasks ORDER BY project_id ASC, created_at ASC, id ASC",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    let mut current_project = String::new();
+    let mut current_index = 0_i64;
+
+    for (task_id, project_id) in rows {
+        if project_id != current_project {
+            current_project = project_id.clone();
+            current_index = 0;
+        }
+
+        connection
+            .execute(
+                "UPDATE tasks SET order_index = ?1 WHERE id = ?2",
+                params![current_index, task_id],
+            )
+            .map_err(|error| error.to_string())?;
+        current_index += 1;
     }
 
     Ok(())
@@ -191,6 +272,7 @@ fn ensure_project_archive_column(connection: &Connection) -> Result<(), String> 
 
 #[derive(Clone)]
 struct UserSnapshotRecord {
+    id: String,
     developer: String,
     sprint: String,
     focus_score: i64,
@@ -234,6 +316,19 @@ fn parse_stack(serialized: &str) -> Vec<String> {
 
 fn serialize_stack(stack: &[String]) -> Result<String, String> {
     serde_json::to_string(stack).map_err(|error| error.to_string())
+}
+
+fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut ordered = Vec::new();
+
+    for value in values {
+        if seen.insert(value.clone()) {
+            ordered.push(value);
+        }
+    }
+
+    ordered
 }
 
 fn seed_projects() -> Vec<SeedProject> {
@@ -420,6 +515,8 @@ fn init_database(connection: &Connection) -> Result<(), String> {
               status TEXT NOT NULL,
               summary TEXT NOT NULL,
               milestone TEXT NOT NULL,
+              task_order_customized INTEGER NOT NULL DEFAULT 0,
+              order_index INTEGER NOT NULL DEFAULT 0,
               archived_at TEXT,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
@@ -431,6 +528,7 @@ fn init_database(connection: &Connection) -> Result<(), String> {
               done INTEGER NOT NULL DEFAULT 0,
               project_id TEXT NOT NULL,
               urgency TEXT NOT NULL,
+              order_index INTEGER NOT NULL DEFAULT 0,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL,
               FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -460,7 +558,33 @@ fn init_database(connection: &Connection) -> Result<(), String> {
         )
         .map_err(|error| error.to_string())?;
 
-    ensure_project_archive_column(connection)?;
+    ensure_column(connection, "projects", "archived_at", "TEXT")?;
+    ensure_column(
+        connection,
+        "projects",
+        "task_order_customized",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    let added_project_order_column = ensure_column(
+        connection,
+        "projects",
+        "order_index",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    let added_task_order_column = ensure_column(
+        connection,
+        "tasks",
+        "order_index",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+
+    if added_project_order_column {
+        hydrate_project_order_indexes(connection)?;
+    }
+
+    if added_task_order_column {
+        hydrate_task_order_indexes(connection)?;
+    }
 
     let project_count: i64 = connection
         .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
@@ -472,11 +596,11 @@ fn init_database(connection: &Connection) -> Result<(), String> {
 
     let timestamp = now_string();
 
-    for project in seed_projects() {
+    for (index, project) in seed_projects().into_iter().enumerate() {
         connection
             .execute(
-                "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, order_index, archived_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
                     project.id,
                     project.name,
@@ -486,6 +610,7 @@ fn init_database(connection: &Connection) -> Result<(), String> {
                     project.status,
                     project.summary,
                     project.milestone,
+                    index as i64,
                     Option::<String>::None,
                     timestamp,
                     timestamp
@@ -494,22 +619,26 @@ fn init_database(connection: &Connection) -> Result<(), String> {
             .map_err(|error| error.to_string())?;
     }
 
+    let mut task_order_by_project = std::collections::HashMap::<&str, i64>::new();
     for task in seed_tasks() {
+        let next_index = *task_order_by_project.get(task.project_id).unwrap_or(&0);
         connection
             .execute(
-                "INSERT INTO tasks (id, title, done, project_id, urgency, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO tasks (id, title, done, project_id, urgency, order_index, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     task.id,
                     task.title,
                     if task.done { 1 } else { 0 },
                     task.project_id,
                     task.urgency,
+                    next_index,
                     timestamp,
                     timestamp
                 ],
             )
             .map_err(|error| error.to_string())?;
+        task_order_by_project.insert(task.project_id, next_index + 1);
     }
 
     for agent in seed_agents() {
@@ -555,7 +684,7 @@ fn get_project_record(
 ) -> Result<Option<ProjectRecord>, String> {
     connection
         .query_row(
-            "SELECT name, client, stack, priority, status, summary, milestone, archived_at FROM projects WHERE id = ?1",
+            "SELECT name, client, stack, priority, status, summary, milestone, order_index, archived_at FROM projects WHERE id = ?1",
             [project_id],
             |row| {
                 Ok(ProjectRecord {
@@ -566,7 +695,8 @@ fn get_project_record(
                     status: row.get(4)?,
                     summary: row.get(5)?,
                     milestone: row.get(6)?,
-                    archived_at: row.get(7)?,
+                    order_index: row.get(7)?,
+                    archived_at: row.get(8)?,
                 })
             },
         )
@@ -576,9 +706,29 @@ fn get_project_record(
 
 fn list_tasks(connection: &Connection, project_id: Option<&str>) -> Result<Vec<TaskItem>, String> {
     let sql = if project_id.is_some() {
-        "SELECT id, title, done, project_id, urgency FROM tasks WHERE project_id = ?1 ORDER BY created_at ASC"
+        "SELECT tasks.id, tasks.title, tasks.done, tasks.project_id, tasks.urgency
+         FROM tasks
+         JOIN projects ON projects.id = tasks.project_id
+         WHERE tasks.project_id = ?1
+         ORDER BY
+            CASE
+                WHEN COALESCE(projects.task_order_customized, 0) = 0 THEN tasks.done
+                ELSE 0
+            END ASC,
+            tasks.order_index ASC,
+            tasks.created_at ASC"
     } else {
-        "SELECT id, title, done, project_id, urgency FROM tasks ORDER BY created_at ASC"
+        "SELECT tasks.id, tasks.title, tasks.done, tasks.project_id, tasks.urgency
+         FROM tasks
+         JOIN projects ON projects.id = tasks.project_id
+         ORDER BY
+            tasks.project_id ASC,
+            CASE
+                WHEN COALESCE(projects.task_order_customized, 0) = 0 THEN tasks.done
+                ELSE 0
+            END ASC,
+            tasks.order_index ASC,
+            tasks.created_at ASC"
     };
 
     let mut statement = connection.prepare(sql).map_err(|error| error.to_string())?;
@@ -622,6 +772,48 @@ fn get_task_record(connection: &Connection, task_id: &str) -> Result<Option<Task
             },
         )
         .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn get_task_internal_record(
+    connection: &Connection,
+    task_id: &str,
+) -> Result<Option<TaskRecord>, String> {
+    connection
+        .query_row(
+            "SELECT title, done, project_id, urgency, order_index FROM tasks WHERE id = ?1",
+            [task_id],
+            |row| {
+                Ok(TaskRecord {
+                    title: row.get(0)?,
+                    done: row.get::<_, i64>(1)? == 1,
+                    project_id: row.get(2)?,
+                    urgency: row.get(3)?,
+                    order_index: row.get(4)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn get_next_project_order_index(connection: &Connection) -> Result<i64, String> {
+    connection
+        .query_row(
+            "SELECT COALESCE(MAX(order_index), -1) + 1 FROM projects WHERE archived_at IS NULL",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())
+}
+
+fn get_next_task_order_index(connection: &Connection, project_id: &str) -> Result<i64, String> {
+    connection
+        .query_row(
+            "SELECT COALESCE(MAX(order_index), -1) + 1 FROM tasks WHERE project_id = ?1",
+            [project_id],
+            |row| row.get(0),
+        )
         .map_err(|error| error.to_string())
 }
 
@@ -674,14 +866,15 @@ fn get_agent_record(connection: &Connection, agent_id: &str) -> Result<Option<Lo
 fn get_user_snapshot_record(connection: &Connection) -> Result<Option<UserSnapshotRecord>, String> {
     connection
         .query_row(
-            "SELECT developer, sprint, focus_score, next_deadline FROM user_snapshot LIMIT 1",
+            "SELECT id, developer, sprint, focus_score, next_deadline FROM user_snapshot LIMIT 1",
             [],
             |row| {
                 Ok(UserSnapshotRecord {
-                    developer: row.get(0)?,
-                    sprint: row.get(1)?,
-                    focus_score: row.get(2)?,
-                    next_deadline: row.get(3)?,
+                    id: row.get(0)?,
+                    developer: row.get(1)?,
+                    sprint: row.get(2)?,
+                    focus_score: row.get(3)?,
+                    next_deadline: row.get(4)?,
                 })
             },
         )
@@ -780,12 +973,12 @@ fn get_projects_view_by_archive_state(
         "SELECT id, name, client, stack, priority, status, summary, milestone, archived_at
          FROM projects
          WHERE archived_at IS NOT NULL
-         ORDER BY archived_at DESC, created_at DESC"
+         ORDER BY archived_at DESC, order_index ASC, created_at DESC"
     } else {
         "SELECT id, name, client, stack, priority, status, summary, milestone, archived_at
          FROM projects
          WHERE archived_at IS NULL
-         ORDER BY created_at ASC"
+         ORDER BY order_index ASC, created_at ASC"
     };
     let mut statement = connection
         .prepare(query)
@@ -864,8 +1057,8 @@ fn create_project(input: CreateProjectInput) -> Result<ProjectWithProgress, Stri
 
     connection
         .execute(
-            "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            "INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, order_index, archived_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 project_id,
                 name,
@@ -875,6 +1068,7 @@ fn create_project(input: CreateProjectInput) -> Result<ProjectWithProgress, Stri
                 input.status,
                 if summary.is_empty() { "Aucun résumé pour le moment.".to_string() } else { summary },
                 if input.milestone.trim().is_empty() { "Sans échéance définie".to_string() } else { input.milestone.trim().to_string() },
+                get_next_project_order_index(&connection)?,
                 Option::<String>::None,
                 timestamp,
                 timestamp
@@ -934,8 +1128,8 @@ fn update_project(
     connection
         .execute(
             "UPDATE projects
-             SET name = ?1, client = ?2, stack = ?3, priority = ?4, status = ?5, summary = ?6, milestone = ?7, archived_at = ?8, updated_at = ?9
-             WHERE id = ?10",
+             SET name = ?1, client = ?2, stack = ?3, priority = ?4, status = ?5, summary = ?6, milestone = ?7, order_index = ?8, archived_at = ?9, updated_at = ?10
+             WHERE id = ?11",
             params![
                 next_name,
                 next_client,
@@ -944,6 +1138,7 @@ fn update_project(
                 changes.status.unwrap_or(current.status),
                 next_summary,
                 next_milestone,
+                current.order_index,
                 current.archived_at,
                 timestamp,
                 project_id
@@ -958,9 +1153,12 @@ fn update_project(
 fn delete_project(project_id: String) -> Result<(), String> {
     let connection = open_connection()?;
 
-    connection
+    let deleted_count = connection
         .execute("DELETE FROM projects WHERE id = ?1", [project_id])
         .map_err(|error| error.to_string())?;
+    if deleted_count == 0 {
+        return Err("Project not found".to_string());
+    }
 
     Ok(())
 }
@@ -968,11 +1166,7 @@ fn delete_project(project_id: String) -> Result<(), String> {
 #[tauri::command]
 fn archive_projects(project_ids: Vec<String>) -> Result<(), String> {
     let connection = open_connection()?;
-    let unique_project_ids = project_ids
-        .into_iter()
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
+    let unique_project_ids = dedupe_preserve_order(project_ids);
 
     if unique_project_ids.is_empty() {
         return Err("No projects selected for archive".to_string());
@@ -1002,6 +1196,40 @@ fn archive_projects(project_ids: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn reorder_projects(project_ids: Vec<String>) -> Result<(), String> {
+    let connection = open_connection()?;
+    let current_projects = get_projects_view(&connection)?;
+    let unique_project_ids = dedupe_preserve_order(project_ids);
+
+    if unique_project_ids.len() != current_projects.len() {
+        return Err("Project reorder payload is incomplete".to_string());
+    }
+
+    let current_project_ids = current_projects
+        .iter()
+        .map(|project| project.id.clone())
+        .collect::<HashSet<_>>();
+    if unique_project_ids
+        .iter()
+        .any(|project_id| !current_project_ids.contains(project_id))
+    {
+        return Err("Project reorder payload is invalid".to_string());
+    }
+
+    let timestamp = now_string();
+    for (index, project_id) in unique_project_ids.iter().enumerate() {
+        connection
+            .execute(
+                "UPDATE projects SET order_index = ?1, updated_at = ?2 WHERE id = ?3 AND archived_at IS NULL",
+                params![index as i64, timestamp, project_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn get_tasks(project_id: Option<String>) -> Result<Vec<TaskItem>, String> {
     let connection = open_connection()?;
     list_tasks(&connection, project_id.as_deref())
@@ -1009,28 +1237,41 @@ fn get_tasks(project_id: Option<String>) -> Result<Vec<TaskItem>, String> {
 
 #[tauri::command]
 fn create_task(input: CreateTaskInput) -> Result<TaskItem, String> {
-    let connection = open_connection()?;
+    let mut connection = open_connection()?;
     if get_project_record(&connection, &input.project_id)?.is_none() {
         return Err("Project not found".to_string());
     }
 
     let task_id = Uuid::new_v4().to_string();
     let timestamp = now_string();
-    connection
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    transaction
         .execute(
-            "INSERT INTO tasks (id, title, done, project_id, urgency, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "UPDATE tasks
+             SET order_index = order_index + 1, updated_at = ?1
+             WHERE project_id = ?2 AND order_index >= 0",
+            params![timestamp, input.project_id],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "INSERT INTO tasks (id, title, done, project_id, urgency, order_index, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 task_id,
                 input.title,
                 0,
                 input.project_id,
                 input.urgency.unwrap_or_else(|| "today".to_string()),
+                0,
                 timestamp,
                 timestamp
             ],
         )
         .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())?;
 
     sync_project_status(&connection, &input.project_id)?;
     get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())
@@ -1039,8 +1280,8 @@ fn create_task(input: CreateTaskInput) -> Result<TaskItem, String> {
 #[tauri::command]
 fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, String> {
     let connection = open_connection()?;
-    let current =
-        get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
+    let current = get_task_internal_record(&connection, &task_id)?
+        .ok_or_else(|| "Task not found".to_string())?;
     let next_project_id = changes
         .project_id
         .unwrap_or_else(|| current.project_id.clone());
@@ -1052,25 +1293,77 @@ fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, St
     connection
         .execute(
             "UPDATE tasks
-             SET title = ?1, done = ?2, project_id = ?3, urgency = ?4, updated_at = ?5
-             WHERE id = ?6",
+             SET title = ?1, done = ?2, project_id = ?3, urgency = ?4, order_index = ?5, updated_at = ?6
+             WHERE id = ?7",
             params![
-                changes.title.unwrap_or(current.title),
+                changes.title.unwrap_or(current.title.clone()),
                 if changes.done.unwrap_or(current.done) {
                     1
                 } else {
                     0
                 },
-                next_project_id,
+                next_project_id.clone(),
                 changes.urgency.unwrap_or(current.urgency),
+                if next_project_id != current.project_id {
+                    get_next_task_order_index(&connection, &next_project_id)?
+                } else {
+                    current.order_index
+                },
                 now_string(),
                 task_id
             ],
         )
         .map_err(|error| error.to_string())?;
 
+    if next_project_id != current.project_id {
+        sync_project_status(&connection, &current.project_id)?;
+    }
     sync_project_status(&connection, &next_project_id)?;
     get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())
+}
+
+#[tauri::command]
+fn reorder_tasks(project_id: String, task_ids: Vec<String>) -> Result<(), String> {
+    let connection = open_connection()?;
+    if get_project_record(&connection, &project_id)?.is_none() {
+        return Err("Project not found".to_string());
+    }
+
+    let current_tasks = list_tasks(&connection, Some(project_id.as_str()))?;
+    let unique_task_ids = dedupe_preserve_order(task_ids);
+
+    if unique_task_ids.len() != current_tasks.len() {
+        return Err("Task reorder payload is incomplete".to_string());
+    }
+
+    let current_task_ids = current_tasks
+        .iter()
+        .map(|task| task.id.clone())
+        .collect::<HashSet<_>>();
+    if unique_task_ids
+        .iter()
+        .any(|task_id| !current_task_ids.contains(task_id))
+    {
+        return Err("Task reorder payload is invalid".to_string());
+    }
+
+    let timestamp = now_string();
+    for (index, task_id) in unique_task_ids.iter().enumerate() {
+        connection
+            .execute(
+                "UPDATE tasks SET order_index = ?1, updated_at = ?2 WHERE id = ?3 AND project_id = ?4",
+                params![index as i64, timestamp, task_id, project_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    connection
+        .execute(
+            "UPDATE projects SET task_order_customized = 1, updated_at = ?1 WHERE id = ?2",
+            params![timestamp, project_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -1079,9 +1372,12 @@ fn delete_task(task_id: String) -> Result<(), String> {
     let current =
         get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
 
-    connection
+    let deleted_count = connection
         .execute("DELETE FROM tasks WHERE id = ?1", [task_id])
         .map_err(|error| error.to_string())?;
+    if deleted_count == 0 {
+        return Err("Task not found".to_string());
+    }
 
     sync_project_status(&connection, &current.project_id)?;
     Ok(())
@@ -1169,13 +1465,15 @@ fn update_user_snapshot(changes: UpdateUserSnapshotInput) -> Result<UserSnapshot
     connection
         .execute(
             "UPDATE user_snapshot
-             SET developer = ?1, sprint = ?2, focus_score = ?3, next_deadline = ?4, updated_at = ?5",
+             SET developer = ?1, sprint = ?2, focus_score = ?3, next_deadline = ?4, updated_at = ?5
+             WHERE id = ?6",
             params![
                 changes.developer.unwrap_or(current.developer),
                 current.sprint,
                 current.focus_score,
                 changes.next_deadline.unwrap_or(current.next_deadline),
-                now_string()
+                now_string(),
+                current.id
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -1194,9 +1492,11 @@ fn main() {
             update_project,
             delete_project,
             archive_projects,
+            reorder_projects,
             get_tasks,
             create_task,
             update_task,
+            reorder_tasks,
             delete_task,
             get_agents,
             create_agent,

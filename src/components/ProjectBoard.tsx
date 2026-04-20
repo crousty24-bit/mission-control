@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+	type PointerEvent as ReactPointerEvent,
+	useEffect,
+	useEffectEvent,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type {
 	CreateProjectInput,
 	Project,
@@ -6,6 +13,7 @@ import type {
 	ProjectStatus,
 	UpdateProjectInput,
 } from "../types";
+import { GripIcon } from "./IconButton";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectModal } from "./ProjectModal";
 
@@ -24,6 +32,55 @@ interface ProjectBoardProps {
 	onUpdatePriority: (projectId: string, priority: ProjectPriority) => void;
 	onDeleteProject: (projectId: string) => void;
 	onArchiveProjects: (projectIds: string[]) => Promise<void>;
+	onReorderProjects: (projectIds: string[]) => Promise<void> | void;
+}
+
+function moveProject(
+	projects: Project[],
+	draggedProjectId: string,
+	targetProjectId: string,
+) {
+	const draggedIndex = projects.findIndex(
+		(project) => project.id === draggedProjectId,
+	);
+	const targetIndex = projects.findIndex(
+		(project) => project.id === targetProjectId,
+	);
+
+	if (
+		draggedIndex === -1 ||
+		targetIndex === -1 ||
+		draggedIndex === targetIndex
+	) {
+		return projects;
+	}
+
+	const nextProjects = [...projects];
+	const [draggedProject] = nextProjects.splice(draggedIndex, 1);
+	nextProjects.splice(targetIndex, 0, draggedProject);
+	return nextProjects;
+}
+
+function orderProjects(
+	projects: Project[],
+	projectOrderOverride: string[] | null,
+) {
+	if (!projectOrderOverride) {
+		return projects;
+	}
+
+	const projectsById = new Map(
+		projects.map((project) => [project.id, project]),
+	);
+	const orderedProjects = projectOrderOverride
+		.map((projectId) => projectsById.get(projectId))
+		.filter((project): project is Project => Boolean(project));
+	const knownProjectIds = new Set(orderedProjects.map((project) => project.id));
+	const remainingProjects = projects.filter(
+		(project) => !knownProjectIds.has(project.id),
+	);
+
+	return [...orderedProjects, ...remainingProjects];
 }
 
 export function ProjectBoard({
@@ -36,7 +93,9 @@ export function ProjectBoard({
 	onUpdatePriority,
 	onDeleteProject,
 	onArchiveProjects,
+	onReorderProjects,
 }: ProjectBoardProps) {
+	const [isShowingAllProjects, setIsShowingAllProjects] = useState(false);
 	const [modalState, setModalState] = useState<{
 		mode: "create" | "edit" | "view";
 		project?: Project;
@@ -44,6 +103,24 @@ export function ProjectBoard({
 	const [isArchiveSelectionMode, setIsArchiveSelectionMode] = useState(false);
 	const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
 	const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+	const [projectOrderOverride, setProjectOrderOverride] = useState<
+		string[] | null
+	>(null);
+	const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
+	const draggedProjectIdRef = useRef<string | null>(null);
+	const dragStartOrderRef = useRef<string[]>([]);
+	const didReorderRef = useRef(false);
+	const orderedProjects = useMemo(() => {
+		return orderProjects(projects, projectOrderOverride);
+	}, [projectOrderOverride, projects]);
+	const visibleProjects = useMemo(
+		() =>
+			isShowingAllProjects ? orderedProjects : orderedProjects.slice(0, 6),
+		[isShowingAllProjects, orderedProjects],
+	);
+	const orderedProjectsRef = useRef(orderedProjects);
+	const projectsRef = useRef(projects);
+	const onReorderProjectsRef = useRef(onReorderProjects);
 
 	const archivableProjects = useMemo(
 		() => projects.filter((project) => project.status === "done"),
@@ -62,6 +139,15 @@ export function ProjectBoard({
 	);
 	const isArchiveSelectionActive =
 		isArchiveSelectionMode && archivableProjects.length > 0;
+
+	useEffect(() => {
+		orderedProjectsRef.current = orderedProjects;
+	}, [orderedProjects]);
+
+	useEffect(() => {
+		projectsRef.current = projects;
+		onReorderProjectsRef.current = onReorderProjects;
+	}, [onReorderProjects, projects]);
 
 	const selectedArchiveProjects = useMemo(
 		() =>
@@ -123,6 +209,109 @@ export function ProjectBoard({
 		setIsArchiveConfirmOpen(true);
 	};
 
+	const restoreProjectOrder = useEffectEvent((projectOrder: string[]) => {
+		const currentProjectOrder = projectsRef.current.map(
+			(project) => project.id,
+		);
+		setProjectOrderOverride(
+			projectOrder.join(",") === currentProjectOrder.join(",")
+				? null
+				: projectOrder,
+		);
+	});
+
+	const handleProjectPointerDown =
+		(projectId: string) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+			if (isArchiveSelectionActive) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+			dragStartOrderRef.current = orderedProjects.map((project) => project.id);
+			didReorderRef.current = false;
+			draggedProjectIdRef.current = projectId;
+			setDraggedProjectId(projectId);
+		};
+
+	const finishProjectReorder = useEffectEvent(() => {
+		if (!draggedProjectIdRef.current) {
+			dragStartOrderRef.current = [];
+			return;
+		}
+
+		const previousOrder = dragStartOrderRef.current;
+		const nextOrder = orderedProjectsRef.current.map((project) => project.id);
+		draggedProjectIdRef.current = null;
+		setDraggedProjectId(null);
+		dragStartOrderRef.current = [];
+		didReorderRef.current = false;
+
+		if (previousOrder.join(",") === nextOrder.join(",")) {
+			return;
+		}
+
+		void Promise.resolve()
+			.then(() => onReorderProjectsRef.current(nextOrder))
+			.catch(() => {
+				restoreProjectOrder(previousOrder);
+			});
+	});
+
+	useEffect(() => {
+		if (!draggedProjectId) {
+			return;
+		}
+
+		const handlePointerMove = (event: PointerEvent) => {
+			if (!draggedProjectIdRef.current) {
+				return;
+			}
+
+			const target = document.elementFromPoint(
+				event.clientX,
+				event.clientY,
+			) as HTMLElement | null;
+			const targetCard = target?.closest("[data-project-card-id]");
+			const targetProjectId = targetCard?.getAttribute("data-project-card-id");
+
+			if (!targetProjectId || draggedProjectIdRef.current === targetProjectId) {
+				return;
+			}
+
+			didReorderRef.current = true;
+			const nextProjects = moveProject(
+				orderedProjectsRef.current,
+				draggedProjectIdRef.current,
+				targetProjectId,
+			);
+			setProjectOrderOverride(nextProjects.map((project) => project.id));
+		};
+
+		const cancelProjectDrag = () => {
+			if (dragStartOrderRef.current.length > 0) {
+				restoreProjectOrder(dragStartOrderRef.current);
+			}
+
+			didReorderRef.current = false;
+			dragStartOrderRef.current = [];
+			draggedProjectIdRef.current = null;
+			setDraggedProjectId(null);
+		};
+
+		window.addEventListener("pointermove", handlePointerMove);
+		window.addEventListener("pointerup", finishProjectReorder);
+		window.addEventListener("pointercancel", cancelProjectDrag);
+		window.addEventListener("blur", cancelProjectDrag);
+
+		return () => {
+			window.removeEventListener("pointermove", handlePointerMove);
+			window.removeEventListener("pointerup", finishProjectReorder);
+			window.removeEventListener("pointercancel", cancelProjectDrag);
+			window.removeEventListener("blur", cancelProjectDrag);
+		};
+	}, [draggedProjectId]);
+
 	return (
 		<section className="section-block">
 			<div className="section-heading">
@@ -183,25 +372,43 @@ export function ProjectBoard({
 			</div>
 
 			<div className="project-board">
-				{projects.map((project) => (
+				{visibleProjects.map((project) => (
 					<ProjectCard
 						key={project.id}
 						project={project}
 						isSelected={project.id === selectedProjectId}
 						isArchiveSelectionMode={isArchiveSelectionActive}
 						isArchiveSelected={effectiveSelectedArchiveIds.includes(project.id)}
+						isDragging={draggedProjectId === project.id}
+						dragHandle={
+							!isArchiveSelectionActive ? (
+								<button
+									type="button"
+									className="drag-handle"
+									aria-label={`Réordonner ${project.name}`}
+									title={`Réordonner ${project.name}`}
+									onClick={(event) => {
+										event.preventDefault();
+										event.stopPropagation();
+									}}
+									onPointerDown={handleProjectPointerDown(project.id)}
+								>
+									<GripIcon />
+								</button>
+							) : null
+						}
 						onToggleArchiveSelection={toggleArchiveSelection}
 						onSelect={onSelectProject}
 						onOpenProject={(projectId) =>
 							setModalState({
 								mode: "view",
-								project: projects.find((item) => item.id === projectId),
+								project: orderedProjects.find((item) => item.id === projectId),
 							})
 						}
 						onEditProject={(projectId) =>
 							setModalState({
 								mode: "edit",
-								project: projects.find((item) => item.id === projectId),
+								project: orderedProjects.find((item) => item.id === projectId),
 							})
 						}
 						onDeleteProject={onDeleteProject}
@@ -210,6 +417,19 @@ export function ProjectBoard({
 					/>
 				))}
 			</div>
+
+			{orderedProjects.length > 6 ? (
+				<div className="section-footer-action">
+					<button
+						type="button"
+						className="section-link-action"
+						aria-expanded={isShowingAllProjects}
+						onClick={() => setIsShowingAllProjects((current) => !current)}
+					>
+						{isShowingAllProjects ? "show less" : "view all"}
+					</button>
+				</div>
+			) : null}
 
 			{modalState ? (
 				<ProjectModal

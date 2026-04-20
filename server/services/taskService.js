@@ -8,6 +8,7 @@ import {
 	getTaskById,
 	insertTask,
 	listTasks,
+	reorderTasks as persistTaskOrder,
 	deleteTask as removeTask,
 	updateTask,
 } from "../repositories/tasksRepository.js";
@@ -53,6 +54,7 @@ export function createTaskRecord(input) {
 		done: false,
 		projectId: input.projectId,
 		urgency: input.urgency ?? "today",
+		orderIndex: 0,
 		createdAt: timestamp,
 		updatedAt: timestamp,
 	};
@@ -78,6 +80,9 @@ export function patchTask(taskId, changes) {
 		projectId: changes.projectId ?? current.projectId,
 		urgency: changes.urgency ?? current.urgency,
 	});
+	if (nextTask.projectId !== current.projectId) {
+		syncProjectStatus(current.projectId);
+	}
 	syncProjectStatus(nextTask.projectId);
 	return nextTask;
 }
@@ -107,4 +112,24 @@ export function getCompletionRate() {
 
 	const doneCount = tasks.filter((task) => task.done).length;
 	return Math.round((doneCount / tasks.length) * 100);
+}
+
+export function reorderTasks(projectId, taskIds) {
+	if (!getProjectById(projectId)) {
+		throw new Error("Project not found");
+	}
+
+	const uniqueTaskIds = [...new Set(taskIds)];
+	const currentTasks = listTasks(projectId);
+
+	if (uniqueTaskIds.length !== currentTasks.length) {
+		throw new Error("Task reorder payload is incomplete");
+	}
+
+	const currentTaskIds = new Set(currentTasks.map((task) => task.id));
+	if (uniqueTaskIds.some((taskId) => !currentTaskIds.has(taskId))) {
+		throw new Error("Task reorder payload is invalid");
+	}
+
+	persistTaskOrder(projectId, uniqueTaskIds);
 }

@@ -22,11 +22,13 @@ export interface MissionControlDataSource {
 		projectId: string,
 		input: UpdateProjectInput,
 	) => Promise<ProjectWithProgress>;
+	reorderProjects: (projectIds: string[]) => Promise<void>;
 	deleteProject: (projectId: string) => Promise<void>;
 	archiveProjects: (projectIds: string[]) => Promise<void>;
 	getTasks: (projectId?: string) => Promise<TaskItem[]>;
 	createTask: (input: CreateTaskInput) => Promise<TaskItem>;
 	updateTask: (taskId: string, input: UpdateTaskInput) => Promise<TaskItem>;
+	reorderTasks: (projectId: string, taskIds: string[]) => Promise<void>;
 	deleteTask: (taskId: string) => Promise<void>;
 	getAgents: () => Promise<LocalAgent[]>;
 	createAgent: (input: CreateAgentInput) => Promise<LocalAgent>;

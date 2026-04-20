@@ -128,6 +128,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 				runMutation(() => dataSource.createProject(input)),
 			updateProject: (projectId, input) =>
 				runMutation(() => dataSource.updateProject(projectId, input)),
+			reorderProjects: (projectIds) =>
+				runMutation(() => dataSource.reorderProjects(projectIds)),
 			deleteProject: (projectId) =>
 				runMutation(() => dataSource.deleteProject(projectId)),
 			archiveProjects: (projectIds) =>
@@ -135,6 +137,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 			createTask: (input) => runMutation(() => dataSource.createTask(input)),
 			updateTask: (taskId, input) =>
 				runMutation(() => dataSource.updateTask(taskId, input)),
+			reorderTasks: (projectId, taskIds) =>
+				runMutation(() => dataSource.reorderTasks(projectId, taskIds)),
 			deleteTask: (taskId) => runMutation(() => dataSource.deleteTask(taskId)),
 			createAgent: (input) => runMutation(() => dataSource.createAgent(input)),
 			updateAgent: (agentId, input) =>

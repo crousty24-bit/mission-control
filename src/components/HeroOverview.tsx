@@ -36,7 +36,7 @@ export function HeroOverview({
 					className="signal-glow-card signal-glow-card--lead"
 					edgeSensitivity={32}
 					glowColor="20 63 56"
-					backgroundColor="#221510"
+					backgroundColor="#12161b"
 					borderRadius={22}
 					glowRadius={26}
 					glowIntensity={0.38}
@@ -60,7 +60,7 @@ export function HeroOverview({
 						className="signal-glow-card"
 						edgeSensitivity={34}
 						glowColor="20 63 56"
-						backgroundColor="#21140f"
+						backgroundColor="#11151a"
 						borderRadius={22}
 						glowRadius={24}
 						glowIntensity={0.34}
@@ -82,7 +82,7 @@ export function HeroOverview({
 						className="signal-glow-card"
 						edgeSensitivity={34}
 						glowColor="20 63 56"
-						backgroundColor="#21140f"
+						backgroundColor="#11151a"
 						borderRadius={22}
 						glowRadius={24}
 						glowIntensity={0.34}

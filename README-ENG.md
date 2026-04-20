@@ -28,9 +28,12 @@ Mission Control provides:
 
 - a personal landing page with progress-oriented project metrics
 - a project dashboard with real status, priority, and progress
+- drag-and-drop reordering for projects in the active pipeline
 - an archive flow for `done` projects
 - a read-only `Archives` page for projects removed from the active workflow
 - a Todo List linked to the active project
+- drag-and-drop reordering for tasks in the selected project
+- expandable compact lists with a `view all / show less` toggle for projects and tasks
 - local SQLite persistence
 - Linux desktop packaging through Tauri
 
@@ -40,7 +43,9 @@ Mission Control provides:
 - dark UI with a pastel orange accent
 - project progress calculated from tasks
 - automatic transition to `done` when all tasks are completed
+- persistent manual project and task reordering through drag and drop
 - archiving distinct from deletion, so finished projects leave the active pipeline cleanly
+- compact default views with on-demand expansion through `view all / show less`
 - fast project and task editing
 - local web fallback kept for development
 
@@ -52,7 +57,10 @@ Mission Control provides:
 
 ### Dashboard
 
-![Dashboard projects](docs/media/dashboard-projects.png)
+![Dashboard page](docs/media/dashboard-page.png)
+![Dashboard projects](docs/media/dashboad-projects.png)
+![Dashboard status](docs/media/dashboard-statut.png)
+![Dashboard donut statuts](docs/media/dashboard-donut-statuts.png)
 ![Dashboard tasks](docs/media/dashboard-tasks.png)
 
 ### Project Flows
@@ -60,8 +68,14 @@ Mission Control provides:
 ![Project modal - create](docs/media/project-modal-create.png)
 ![Project modal - edit](docs/media/project-modal-edit.png)
 ![Project modal - show](docs/media/project-modal-show.png)
-![Project card - status dropdown](docs/media/project-card-status-dropdown.png)
-![Project card - priority dropdown](docs/media/project-card-priority-dropdown.png)
+![Project card - status](docs/media/project-card-status.png)
+![Project card - priority](docs/media/project-card-priority.png)
+![Project cards - archive select](docs/media/project-cards-archive-select.png)
+![Archive modal - confirm](docs/media/archive-modal-confirm.png)
+
+### Archives
+
+![Archives page](docs/media/archives-page.png)
 
 ## Stack
 
@@ -254,6 +268,9 @@ Biome procedure for routine changes:
 - `Active projects` means every non-archived project visible in the board, including `done`
 - an archived project disappears from the active dashboard and remains visible in the `Archives` page
 - archiving is only allowed when a project is in `done`
+- the board project order can be rearranged with drag and drop and remains persisted
+- the task order inside a project can be rearranged with drag and drop and remains persisted
+- project and task sections stay compact by default, then expand through `view all / show less`
 
 ## Linux / Tauri Notes
 

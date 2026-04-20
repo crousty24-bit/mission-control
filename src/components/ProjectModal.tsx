@@ -90,7 +90,7 @@ export function ProjectModal({
 							<p>{initialProject.summary}</p>
 						</div>
 						<div className="modal-detail">
-							<span>Milestone</span>
+							<span>Prochaine échéance</span>
 							<strong>{initialProject.milestone}</strong>
 						</div>
 						<div className="modal-detail">
@@ -235,7 +235,7 @@ export function ProjectModal({
 					</label>
 
 					<label htmlFor={milestoneId}>
-						Milestone
+						Prochaine échéance
 						<input
 							id={milestoneId}
 							value={form.milestone}
