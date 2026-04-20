@@ -10,12 +10,14 @@ import {
 	getArchivedProjectsView,
 	getProjectsView,
 	patchProject,
+	reorderProjects,
 } from "../services/projectService.js";
 import {
 	createTaskRecord,
 	deleteTask,
 	getTasks,
 	patchTask,
+	reorderTasks,
 } from "../services/taskService.js";
 import {
 	getUserSnapshotView,
@@ -74,6 +76,22 @@ export async function handleApiRequest(request, response, url) {
 		return true;
 	}
 
+	if (request.method === "POST" && url.pathname === "/api/projects/reorder") {
+		const payload = await readJsonBody(request);
+
+		try {
+			reorderProjects(payload.projectIds ?? []);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Réorganisation impossible";
+			sendText(response, 400, message);
+			return true;
+		}
+
+		sendText(response, 204, "");
+		return true;
+	}
+
 	const projectMatch = matchProjectPath(url.pathname);
 	if (projectMatch && request.method === "PATCH") {
 		const project = patchProject(projectMatch[1], await readJsonBody(request));
@@ -111,6 +129,22 @@ export async function handleApiRequest(request, response, url) {
 		}
 
 		sendJson(response, 201, task);
+		return true;
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/tasks/reorder") {
+		const payload = await readJsonBody(request);
+
+		try {
+			reorderTasks(payload.projectId, payload.taskIds ?? []);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Réorganisation impossible";
+			sendText(response, 400, message);
+			return true;
+		}
+
+		sendText(response, 204, "");
 		return true;
 	}
 

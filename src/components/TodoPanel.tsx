@@ -1,6 +1,15 @@
-import { type FormEvent, useId, useState } from "react";
+import {
+	type FormEvent,
+	type PointerEvent,
+	useEffect,
+	useEffectEvent,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type { Project, TaskItem } from "../types";
-import { CrossIcon, IconButton, PencilIcon } from "./IconButton";
+import { CrossIcon, GripIcon, IconButton, PencilIcon } from "./IconButton";
 
 interface TodoPanelProps {
 	tasks: TaskItem[];
@@ -9,6 +18,47 @@ interface TodoPanelProps {
 	onAddTask: (title: string, projectId: string) => void;
 	onDeleteTask: (taskId: string) => void;
 	onEditTask: (taskId: string, title: string) => void;
+	onReorderTasks: (
+		projectId: string,
+		taskIds: string[],
+	) => Promise<void> | void;
+}
+
+function moveTask(
+	tasks: TaskItem[],
+	draggedTaskId: string,
+	targetTaskId: string,
+) {
+	const draggedIndex = tasks.findIndex((task) => task.id === draggedTaskId);
+	const targetIndex = tasks.findIndex((task) => task.id === targetTaskId);
+
+	if (
+		draggedIndex === -1 ||
+		targetIndex === -1 ||
+		draggedIndex === targetIndex
+	) {
+		return tasks;
+	}
+
+	const nextTasks = [...tasks];
+	const [draggedTask] = nextTasks.splice(draggedIndex, 1);
+	nextTasks.splice(targetIndex, 0, draggedTask);
+	return nextTasks;
+}
+
+function orderTasks(tasks: TaskItem[], taskOrderOverride: string[] | null) {
+	if (!taskOrderOverride) {
+		return tasks;
+	}
+
+	const tasksById = new Map(tasks.map((task) => [task.id, task]));
+	const orderedTasks = taskOrderOverride
+		.map((taskId) => tasksById.get(taskId))
+		.filter((task): task is TaskItem => Boolean(task));
+	const knownTaskIds = new Set(orderedTasks.map((task) => task.id));
+	const remainingTasks = tasks.filter((task) => !knownTaskIds.has(task.id));
+
+	return [...remainingTasks, ...orderedTasks];
 }
 
 export function TodoPanel({
@@ -18,11 +68,42 @@ export function TodoPanel({
 	onAddTask,
 	onDeleteTask,
 	onEditTask,
+	onReorderTasks,
 }: TodoPanelProps) {
+	const [isShowingAllTasks, setIsShowingAllTasks] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 	const [editingTitle, setEditingTitle] = useState("");
+	const [taskOrderOverride, setTaskOrderOverride] = useState<string[] | null>(
+		null,
+	);
+	const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+	const draggedTaskIdRef = useRef<string | null>(null);
 	const inputId = useId();
+	const selectedProjectId = selectedProject.id;
+	const dragStartOrderRef = useRef<string[]>([]);
+	const didReorderRef = useRef(false);
+	const orderedTasks = useMemo(() => {
+		return orderTasks(tasks, taskOrderOverride);
+	}, [taskOrderOverride, tasks]);
+	const visibleTasks = useMemo(
+		() => (isShowingAllTasks ? orderedTasks : orderedTasks.slice(0, 4)),
+		[isShowingAllTasks, orderedTasks],
+	);
+	const orderedTasksRef = useRef(orderedTasks);
+	const tasksRef = useRef(tasks);
+	const selectedProjectIdRef = useRef(selectedProject.id);
+	const onReorderTasksRef = useRef(onReorderTasks);
+
+	useEffect(() => {
+		orderedTasksRef.current = orderedTasks;
+	}, [orderedTasks]);
+
+	useEffect(() => {
+		tasksRef.current = tasks;
+		selectedProjectIdRef.current = selectedProjectId;
+		onReorderTasksRef.current = onReorderTasks;
+	}, [onReorderTasks, selectedProjectId, tasks]);
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -31,7 +112,7 @@ export function TodoPanel({
 			return;
 		}
 
-		onAddTask(trimmed, selectedProject.id);
+		onAddTask(trimmed, selectedProjectId);
 		setDraft("");
 	};
 
@@ -50,6 +131,103 @@ export function TodoPanel({
 		setEditingTaskId(null);
 		setEditingTitle("");
 	};
+
+	const restoreTaskOrder = useEffectEvent((taskOrder: string[]) => {
+		const currentTaskOrder = tasksRef.current.map((task) => task.id);
+		setTaskOrderOverride(
+			taskOrder.join(",") === currentTaskOrder.join(",") ? null : taskOrder,
+		);
+	});
+
+	const handleTaskPointerDown =
+		(taskId: string) => (event: PointerEvent<HTMLButtonElement>) => {
+			event.preventDefault();
+			event.stopPropagation();
+			dragStartOrderRef.current = orderedTasks.map((task) => task.id);
+			didReorderRef.current = false;
+			draggedTaskIdRef.current = taskId;
+			setDraggedTaskId(taskId);
+		};
+
+	const finishTaskReorder = useEffectEvent(() => {
+		if (!draggedTaskIdRef.current) {
+			dragStartOrderRef.current = [];
+			return;
+		}
+
+		const previousOrder = dragStartOrderRef.current;
+		const nextOrder = orderedTasksRef.current.map((task) => task.id);
+		draggedTaskIdRef.current = null;
+		setDraggedTaskId(null);
+		dragStartOrderRef.current = [];
+		didReorderRef.current = false;
+
+		if (previousOrder.join(",") === nextOrder.join(",")) {
+			return;
+		}
+
+		void Promise.resolve()
+			.then(() =>
+				onReorderTasksRef.current(selectedProjectIdRef.current, nextOrder),
+			)
+			.catch(() => {
+				restoreTaskOrder(previousOrder);
+			});
+	});
+
+	useEffect(() => {
+		if (!draggedTaskId) {
+			return;
+		}
+
+		const handlePointerMove = (event: globalThis.PointerEvent) => {
+			if (!draggedTaskIdRef.current) {
+				return;
+			}
+
+			const target = document.elementFromPoint(
+				event.clientX,
+				event.clientY,
+			) as HTMLElement | null;
+			const targetRow = target?.closest("[data-task-row-id]");
+			const targetTaskId = targetRow?.getAttribute("data-task-row-id");
+
+			if (!targetTaskId || draggedTaskIdRef.current === targetTaskId) {
+				return;
+			}
+
+			didReorderRef.current = true;
+			const nextTasks = moveTask(
+				orderedTasksRef.current,
+				draggedTaskIdRef.current,
+				targetTaskId,
+			);
+			setTaskOrderOverride(nextTasks.map((task) => task.id));
+		};
+
+		const cancelTaskDrag = () => {
+			if (dragStartOrderRef.current.length > 0) {
+				restoreTaskOrder(dragStartOrderRef.current);
+			}
+
+			didReorderRef.current = false;
+			dragStartOrderRef.current = [];
+			draggedTaskIdRef.current = null;
+			setDraggedTaskId(null);
+		};
+
+		window.addEventListener("pointermove", handlePointerMove);
+		window.addEventListener("pointerup", finishTaskReorder);
+		window.addEventListener("pointercancel", cancelTaskDrag);
+		window.addEventListener("blur", cancelTaskDrag);
+
+		return () => {
+			window.removeEventListener("pointermove", handlePointerMove);
+			window.removeEventListener("pointerup", finishTaskReorder);
+			window.removeEventListener("pointercancel", cancelTaskDrag);
+			window.removeEventListener("blur", cancelTaskDrag);
+		};
+	}, [draggedTaskId]);
 
 	return (
 		<section className="section-block">
@@ -73,17 +251,23 @@ export function TodoPanel({
 				</button>
 			</form>
 
-			<div className="task-list">
+			<ul className="task-list">
 				{tasks.length === 0 ? (
-					<p className="empty-state">
+					<li className="empty-state">
 						Aucune tâche pour ce projet. Ajoute une première action pour lancer
 						le suivi de progression.
-					</p>
+					</li>
 				) : (
-					tasks.map((task) => (
-						<div
+					visibleTasks.map((task) => (
+						<li
 							key={task.id}
-							className={task.done ? "task-row task-row--done" : "task-row"}
+							data-task-row-id={task.id}
+							className={[
+								task.done ? "task-row task-row--done" : "task-row",
+								draggedTaskId === task.id ? "task-row--dragging" : null,
+							]
+								.filter(Boolean)
+								.join(" ")}
 						>
 							{editingTaskId === task.id ? (
 								<div className="task-row__main task-row__main--editing">
@@ -104,7 +288,6 @@ export function TodoPanel({
 									<span>{task.title}</span>
 								</label>
 							)}
-							<small>{task.urgency}</small>
 							<div className="task-row__actions">
 								{editingTaskId === task.id ? (
 									<>
@@ -128,6 +311,19 @@ export function TodoPanel({
 									</>
 								) : (
 									<>
+										<button
+											type="button"
+											className="drag-handle"
+											aria-label={`Réordonner ${task.title}`}
+											title={`Réordonner ${task.title}`}
+											onClick={(event) => {
+												event.preventDefault();
+												event.stopPropagation();
+											}}
+											onPointerDown={handleTaskPointerDown(task.id)}
+										>
+											<GripIcon />
+										</button>
 										<IconButton
 											label="Modifier la tâche"
 											icon={<PencilIcon />}
@@ -142,10 +338,23 @@ export function TodoPanel({
 									</>
 								)}
 							</div>
-						</div>
+						</li>
 					))
 				)}
-			</div>
+			</ul>
+
+			{orderedTasks.length > 4 ? (
+				<div className="section-footer-action">
+					<button
+						type="button"
+						className="section-link-action"
+						aria-expanded={isShowingAllTasks}
+						onClick={() => setIsShowingAllTasks((current) => !current)}
+					>
+						{isShowingAllTasks ? "show less" : "view all"}
+					</button>
+				</div>
+			) : null}
 		</section>
 	);
 }

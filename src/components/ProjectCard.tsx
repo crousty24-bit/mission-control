@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import type { Project, ProjectPriority, ProjectStatus } from "../types";
 import { CrossIcon, IconButton, PencilIcon } from "./IconButton";
 
@@ -7,6 +7,8 @@ interface ProjectCardProps {
 	isSelected: boolean;
 	isArchiveSelectionMode?: boolean;
 	isArchiveSelected?: boolean;
+	isDragging?: boolean;
+	dragHandle?: ReactNode;
 	onToggleArchiveSelection?: (projectId: string) => void;
 	onSelect: (projectId: string) => void;
 	onOpenProject: (projectId: string) => void;
@@ -34,6 +36,8 @@ export function ProjectCard({
 	isSelected,
 	isArchiveSelectionMode = false,
 	isArchiveSelected = false,
+	isDragging = false,
+	dragHandle,
 	onToggleArchiveSelection,
 	onSelect,
 	onOpenProject,
@@ -75,6 +79,7 @@ export function ProjectCard({
 		isArchiveSelectable ? "project-card--archive-selectable" : null,
 		isArchiveSelected ? "project-card--archive-selected" : null,
 		isArchiveDisabled ? "project-card--archive-disabled" : null,
+		isDragging ? "project-card--dragging" : null,
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -99,6 +104,7 @@ export function ProjectCard({
 	return (
 		<article
 			className={cardClassName}
+			data-project-card-id={project.id}
 			onClick={isArchiveSelectionMode ? handleArchiveCardClick : undefined}
 			onKeyDown={isArchiveSelectionMode ? handleArchiveCardKeyDown : undefined}
 			role={isArchiveSelectable ? "button" : undefined}
@@ -116,6 +122,7 @@ export function ProjectCard({
 					<h4>{project.name}</h4>
 				</button>
 				<div className="project-card__header-side">
+					{dragHandle}
 					{isArchiveSelectionMode ? (
 						<span className={`status-badge status-badge--${project.status}`}>
 							{project.status}
