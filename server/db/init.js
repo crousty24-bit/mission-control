@@ -17,6 +17,54 @@ function ensureColumn(db, tableName, columnName, definition) {
 	if (!hasColumn) {
 		db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
 	}
+
+	return !hasColumn;
+}
+
+function hydrateProjectOrderIndex(db) {
+	const projects = db
+		.prepare(
+			"SELECT id FROM projects WHERE archived_at IS NULL ORDER BY created_at ASC, id ASC",
+		)
+		.all();
+	const updateOrder = db.prepare(
+		"UPDATE projects SET order_index = ? WHERE id = ?",
+	);
+
+	db.exec("BEGIN");
+	try {
+		for (const [index, project] of projects.entries()) {
+			updateOrder.run(index, project.id);
+		}
+		db.exec("COMMIT");
+	} catch (error) {
+		db.exec("ROLLBACK");
+		throw error;
+	}
+}
+
+function hydrateTaskOrderIndex(db) {
+	const tasks = db
+		.prepare(
+			"SELECT id, project_id FROM tasks ORDER BY project_id ASC, created_at ASC, id ASC",
+		)
+		.all();
+	const updateOrder = db.prepare(
+		"UPDATE tasks SET order_index = ? WHERE id = ?",
+	);
+	db.exec("BEGIN");
+	try {
+		const orderByProject = new Map();
+		for (const task of tasks) {
+			const nextIndex = orderByProject.get(task.project_id) ?? 0;
+			updateOrder.run(nextIndex, task.id);
+			orderByProject.set(task.project_id, nextIndex + 1);
+		}
+		db.exec("COMMIT");
+	} catch (error) {
+		db.exec("ROLLBACK");
+		throw error;
+	}
 }
 
 export function initDatabase() {
@@ -32,6 +80,8 @@ export function initDatabase() {
       status TEXT NOT NULL,
       summary TEXT NOT NULL,
       milestone TEXT NOT NULL,
+      task_order_customized INTEGER NOT NULL DEFAULT 0,
+      order_index INTEGER NOT NULL DEFAULT 0,
       archived_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -43,6 +93,7 @@ export function initDatabase() {
       done INTEGER NOT NULL DEFAULT 0,
       project_id TEXT NOT NULL,
       urgency TEXT NOT NULL,
+      order_index INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -71,6 +122,32 @@ export function initDatabase() {
   `);
 
 	ensureColumn(db, "projects", "archived_at", "TEXT");
+	ensureColumn(
+		db,
+		"projects",
+		"task_order_customized",
+		"INTEGER NOT NULL DEFAULT 0",
+	);
+	const addedProjectOrderColumn = ensureColumn(
+		db,
+		"projects",
+		"order_index",
+		"INTEGER NOT NULL DEFAULT 0",
+	);
+	const addedTaskOrderColumn = ensureColumn(
+		db,
+		"tasks",
+		"order_index",
+		"INTEGER NOT NULL DEFAULT 0",
+	);
+
+	if (addedProjectOrderColumn) {
+		hydrateProjectOrderIndex(db);
+	}
+
+	if (addedTaskOrderColumn) {
+		hydrateTaskOrderIndex(db);
+	}
 
 	const projectCount = db
 		.prepare("SELECT COUNT(*) AS count FROM projects")
@@ -80,13 +157,13 @@ export function initDatabase() {
 	}
 
 	const projectStmt = db.prepare(`
-    INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, archived_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (id, name, client, stack, priority, status, summary, milestone, order_index, archived_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
 	const taskStmt = db.prepare(`
-    INSERT INTO tasks (id, title, done, project_id, urgency, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (id, title, done, project_id, urgency, order_index, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
 	const agentStmt = db.prepare(`
@@ -101,7 +178,7 @@ export function initDatabase() {
 
 	const timestamp = now();
 
-	for (const project of seedProjects) {
+	for (const [index, project] of seedProjects.entries()) {
 		projectStmt.run(
 			project.id,
 			project.name,
@@ -111,22 +188,27 @@ export function initDatabase() {
 			project.status,
 			project.summary,
 			project.milestone,
+			index,
 			null,
 			timestamp,
 			timestamp,
 		);
 	}
 
+	const taskOrderByProject = new Map();
 	for (const task of seedTasks) {
+		const nextIndex = taskOrderByProject.get(task.projectId) ?? 0;
 		taskStmt.run(
 			task.id,
 			task.title,
 			task.done,
 			task.projectId,
 			task.urgency,
+			nextIndex,
 			timestamp,
 			timestamp,
 		);
+		taskOrderByProject.set(task.projectId, nextIndex + 1);
 	}
 
 	for (const agent of seedAgents) {

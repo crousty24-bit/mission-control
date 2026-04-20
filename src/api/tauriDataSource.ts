@@ -19,6 +19,8 @@ export const tauriDataSource: MissionControlDataSource = {
 		invokeTauri("create_project", { input }),
 	updateProject: (projectId: string, input: UpdateProjectInput) =>
 		invokeTauri("update_project", { projectId, changes: input }),
+	reorderProjects: (projectIds: string[]) =>
+		invokeTauri("reorder_projects", { projectIds }).then(() => undefined),
 	deleteProject: (projectId: string) =>
 		invokeTauri("delete_project", { projectId }).then(() => undefined),
 	archiveProjects: (projectIds: string[]) =>
@@ -28,6 +30,8 @@ export const tauriDataSource: MissionControlDataSource = {
 	createTask: (input: CreateTaskInput) => invokeTauri("create_task", { input }),
 	updateTask: (taskId: string, input: UpdateTaskInput) =>
 		invokeTauri("update_task", { taskId, changes: input }),
+	reorderTasks: (projectId: string, taskIds: string[]) =>
+		invokeTauri("reorder_tasks", { projectId, taskIds }).then(() => undefined),
 	deleteTask: (taskId: string) =>
 		invokeTauri("delete_task", { taskId }).then(() => undefined),
 	getAgents: () => invokeTauri("get_agents"),

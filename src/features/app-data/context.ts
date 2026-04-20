@@ -28,6 +28,7 @@ export interface AppDataContextValue {
 		projectId: string,
 		input: UpdateProjectInput,
 	) => Promise<ProjectWithProgress>;
+	reorderProjects: (projectIds: string[]) => Promise<void>;
 	deleteProject: (projectId: string) => Promise<void>;
 	archiveProjects: (projectIds: string[]) => Promise<void>;
 	createTask: (input: {
@@ -39,6 +40,7 @@ export interface AppDataContextValue {
 		taskId: string,
 		input: Partial<Pick<TaskItem, "title" | "done" | "projectId" | "urgency">>,
 	) => Promise<TaskItem>;
+	reorderTasks: (projectId: string, taskIds: string[]) => Promise<void>;
 	deleteTask: (taskId: string) => Promise<void>;
 	createAgent: (input: CreateAgentInput) => Promise<LocalAgent>;
 	updateAgent: (

@@ -15,11 +15,13 @@ export function DashboardPage() {
 		createProject,
 		deleteProject,
 		editProject,
+		reorderProjects,
 		updateProjectPriority,
 		updateProjectStatus,
 		isMutating,
 	} = useProjectActions();
-	const { createTask, deleteTask, editTask, toggleTask } = useTaskActions();
+	const { createTask, deleteTask, editTask, reorderTasks, toggleTask } =
+		useTaskActions();
 	const [selectedProjectId, setSelectedProjectId] = useState("");
 	const resolvedProjectId =
 		selectedProjectId &&
@@ -79,10 +81,12 @@ export function DashboardPage() {
 					void deleteProject(projectId);
 				}}
 				onArchiveProjects={(projectIds) => archiveProjects(projectIds)}
+				onReorderProjects={(projectIds) => reorderProjects(projectIds)}
 			/>
 
 			<section className="dashboard-grid">
 				<TodoPanel
+					key={resolvedProjectId}
 					tasks={tasks}
 					selectedProject={selectedProject}
 					onToggleTask={(taskId) => {
@@ -97,6 +101,9 @@ export function DashboardPage() {
 					onEditTask={(taskId, title) => {
 						void editTask(taskId, title);
 					}}
+					onReorderTasks={(projectId, taskIds) =>
+						reorderTasks(projectId, taskIds)
+					}
 				/>
 				<ProjectStatusSummary projects={projects} />
 			</section>

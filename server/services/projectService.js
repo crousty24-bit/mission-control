@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
+	getNextProjectOrderIndex,
 	getProjectById,
 	getProjectsByIds,
 	insertProject,
 	listArchivedProjects,
 	listProjects,
 	archiveProjects as persistArchivedProjects,
+	reorderProjects as persistProjectOrder,
 	deleteProject as removeProject,
 	updateProject,
 } from "../repositories/projectsRepository.js";
@@ -62,6 +64,7 @@ export function createProject(input) {
 		status: input.status,
 		summary: summary || "Aucun résumé pour le moment.",
 		milestone: input.milestone?.trim() || "Sans échéance définie",
+		orderIndex: getNextProjectOrderIndex(),
 		archivedAt: null,
 		createdAt: timestamp,
 		updatedAt: timestamp,
@@ -133,4 +136,24 @@ export function archiveProjects(projectIds) {
 
 	const archivedAt = new Date().toISOString();
 	persistArchivedProjects(uniqueProjectIds, archivedAt);
+}
+
+export function reorderProjects(projectIds) {
+	const uniqueProjectIds = [...new Set(projectIds)];
+	const activeProjects = listProjects();
+
+	if (activeProjects.length === 0) {
+		return;
+	}
+
+	if (uniqueProjectIds.length !== activeProjects.length) {
+		throw new Error("Project reorder payload is incomplete");
+	}
+
+	const activeProjectIds = new Set(activeProjects.map((project) => project.id));
+	if (uniqueProjectIds.some((projectId) => !activeProjectIds.has(projectId))) {
+		throw new Error("Project reorder payload is invalid");
+	}
+
+	persistProjectOrder(uniqueProjectIds);
 }

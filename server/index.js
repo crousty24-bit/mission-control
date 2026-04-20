@@ -35,6 +35,23 @@ const server = createServer(async (request, response) => {
 	}
 });
 
+server.on("error", (error) => {
+	if (error.code === "EADDRINUSE") {
+		console.error(
+			`Mission Control API cannot start on ${serverConfig.appUrl}: port already in use.`,
+		);
+		console.error(
+			"Stop the process using port 3001, or reuse the existing Mission Control API if that is the intended server.",
+		);
+		process.exit(1);
+	}
+
+	console.error(
+		`Mission Control API failed to start on ${serverConfig.appUrl}: ${error.message}`,
+	);
+	process.exit(1);
+});
+
 server.listen(serverConfig.port, serverConfig.host, () => {
 	console.log(`Mission Control listening on ${serverConfig.appUrl}`);
 });

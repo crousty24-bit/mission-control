@@ -30,6 +30,7 @@ export function useProjectActions() {
 	const {
 		createProject,
 		deleteProject,
+		reorderProjects: persistProjectOrder,
 		updateProject,
 		archiveProjects,
 		isMutating,
@@ -40,6 +41,7 @@ export function useProjectActions() {
 		createProject,
 		editProject: (projectId: string, input: UpdateProjectInput) =>
 			updateProject(projectId, input),
+		reorderProjects: (projectIds: string[]) => persistProjectOrder(projectIds),
 		deleteProject: (projectId: string) => deleteProject(projectId),
 		archiveProjects: (projectIds: string[]) => archiveProjects(projectIds),
 		updateProjectStatus: (projectId: string, status: ProjectStatus) =>

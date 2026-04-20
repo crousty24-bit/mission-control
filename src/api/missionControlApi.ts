@@ -29,6 +29,11 @@ export const httpDataSource: MissionControlDataSource = {
 			method: "PATCH",
 			body: JSON.stringify(input),
 		}),
+	reorderProjects: (projectIds: string[]) =>
+		request("/api/projects/reorder", {
+			method: "POST",
+			body: JSON.stringify({ projectIds }),
+		}).then(() => undefined),
 	deleteProject: (projectId: string) =>
 		request(`/api/projects/${projectId}`, {
 			method: "DELETE",
@@ -49,6 +54,11 @@ export const httpDataSource: MissionControlDataSource = {
 			method: "PATCH",
 			body: JSON.stringify(input),
 		}),
+	reorderTasks: (projectId: string, taskIds: string[]) =>
+		request("/api/tasks/reorder", {
+			method: "POST",
+			body: JSON.stringify({ projectId, taskIds }),
+		}).then(() => undefined),
 	deleteTask: (taskId: string) =>
 		request(`/api/tasks/${taskId}`, {
 			method: "DELETE",
