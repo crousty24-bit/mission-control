@@ -272,6 +272,7 @@ fn hydrate_task_order_indexes(connection: &Connection) -> Result<(), String> {
 
 #[derive(Clone)]
 struct UserSnapshotRecord {
+    id: String,
     developer: String,
     sprint: String,
     focus_score: i64,
@@ -865,14 +866,15 @@ fn get_agent_record(connection: &Connection, agent_id: &str) -> Result<Option<Lo
 fn get_user_snapshot_record(connection: &Connection) -> Result<Option<UserSnapshotRecord>, String> {
     connection
         .query_row(
-            "SELECT developer, sprint, focus_score, next_deadline FROM user_snapshot LIMIT 1",
+            "SELECT id, developer, sprint, focus_score, next_deadline FROM user_snapshot LIMIT 1",
             [],
             |row| {
                 Ok(UserSnapshotRecord {
-                    developer: row.get(0)?,
-                    sprint: row.get(1)?,
-                    focus_score: row.get(2)?,
-                    next_deadline: row.get(3)?,
+                    id: row.get(0)?,
+                    developer: row.get(1)?,
+                    sprint: row.get(2)?,
+                    focus_score: row.get(3)?,
+                    next_deadline: row.get(4)?,
                 })
             },
         )
@@ -1151,9 +1153,12 @@ fn update_project(
 fn delete_project(project_id: String) -> Result<(), String> {
     let connection = open_connection()?;
 
-    connection
+    let deleted_count = connection
         .execute("DELETE FROM projects WHERE id = ?1", [project_id])
         .map_err(|error| error.to_string())?;
+    if deleted_count == 0 {
+        return Err("Project not found".to_string());
+    }
 
     Ok(())
 }
@@ -1367,9 +1372,12 @@ fn delete_task(task_id: String) -> Result<(), String> {
     let current =
         get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())?;
 
-    connection
+    let deleted_count = connection
         .execute("DELETE FROM tasks WHERE id = ?1", [task_id])
         .map_err(|error| error.to_string())?;
+    if deleted_count == 0 {
+        return Err("Task not found".to_string());
+    }
 
     sync_project_status(&connection, &current.project_id)?;
     Ok(())
@@ -1457,13 +1465,15 @@ fn update_user_snapshot(changes: UpdateUserSnapshotInput) -> Result<UserSnapshot
     connection
         .execute(
             "UPDATE user_snapshot
-             SET developer = ?1, sprint = ?2, focus_score = ?3, next_deadline = ?4, updated_at = ?5",
+             SET developer = ?1, sprint = ?2, focus_score = ?3, next_deadline = ?4, updated_at = ?5
+             WHERE id = ?6",
             params![
                 changes.developer.unwrap_or(current.developer),
                 current.sprint,
                 current.focus_score,
                 changes.next_deadline.unwrap_or(current.next_deadline),
-                now_string()
+                now_string(),
+                current.id
             ],
         )
         .map_err(|error| error.to_string())?;
