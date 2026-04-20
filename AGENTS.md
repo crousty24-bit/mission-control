@@ -61,6 +61,7 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - appliquer les corrections sûres avec `npm run lint:biome:write:files -- <fichiers_modifiés>` avant de traiter manuellement les diagnostics restants
 - ne pas lancer de reformatage massif hors périmètre demandé ; `Biome --write` sur `.` est réservé aux lots dédiés de normalisation
 - conserver `ESLint` comme contrôle secondaire via `npm run lint:eslint` tant que la transition Biome n’est pas terminée
+- toujours mettre à jour les 2 versions du README (fr et eng) de la même manière
 
 ## Données et métier
 

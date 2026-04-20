@@ -52,7 +52,10 @@ Mission Control fournit :
 
 ### Dashboard
 
-![Dashboard projects](docs/media/dashboard-projects.png)
+![Dashboard page](docs/media/dashboard-page.png)
+![Dashboard projects](docs/media/dashboad-projects.png)
+![Dashboard status](docs/media/dashboard-statut.png)
+![Dashboard donut statuts](docs/media/dashboard-donut-statuts.png)
 ![Dashboard tasks](docs/media/dashboard-tasks.png)
 
 ### Project Flows
@@ -60,8 +63,14 @@ Mission Control fournit :
 ![Project modal - create](docs/media/project-modal-create.png)
 ![Project modal - edit](docs/media/project-modal-edit.png)
 ![Project modal - show](docs/media/project-modal-show.png)
-![Project card - status dropdown](docs/media/project-card-status-dropdown.png)
-![Project card - priority dropdown](docs/media/project-card-priority-dropdown.png)
+![Project card - status](docs/media/project-card-status.png)
+![Project card - priority](docs/media/project-card-priority.png)
+![Project cards - archive select](docs/media/project-cards-archive-select.png)
+![Archive modal - confirm](docs/media/archive-modal-confirm.png)
+
+### Archives
+
+![Archives page](docs/media/archives-page.png)
 
 ## Stack
 
