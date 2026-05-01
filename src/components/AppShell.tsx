@@ -1,7 +1,10 @@
 import logoUrl from "../../src-tauri/icons/256x256.png";
+import { useUserSnapshot } from "../features/user/hooks";
 import { NavLink, Outlet } from "../lib/router";
 
 export function AppShell() {
+	const { snapshot } = useUserSnapshot();
+
 	return (
 		<div className="app-shell">
 			<header className="topbar">
@@ -47,7 +50,22 @@ export function AppShell() {
 						Archives
 					</NavLink>
 				</nav>
-				<div className="topbar__spacer" aria-hidden="true" />
+				<div className="topbar__streak">
+					<span className="topbar__streak-icon" aria-hidden="true">
+						<svg
+							viewBox="0 0 24 24"
+							role="img"
+							focusable="false"
+							aria-hidden="true"
+						>
+							<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+						</svg>
+					</span>
+					<span className="topbar__streak-copy">
+						<span className="topbar__streak-label">Streak</span>
+						<strong>+{snapshot.streakCount}</strong>
+					</span>
+				</div>
 			</header>
 
 			<main className="app-main">

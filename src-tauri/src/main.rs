@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use chrono::{DateTime, Datelike, Local};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -96,6 +97,7 @@ struct UserSnapshot {
     remaining_tasks: i64,
     next_deadline: String,
     completion_rate: i64,
+    streak_count: i64,
 }
 
 #[derive(Deserialize)]
@@ -277,6 +279,9 @@ struct UserSnapshotRecord {
     sprint: String,
     focus_score: i64,
     next_deadline: String,
+    streak_count: i64,
+    streak_last_rewarded_at: Option<String>,
+    streak_cycle_started_at: Option<String>,
 }
 
 fn configure_linux_graphics_runtime() {
@@ -308,6 +313,22 @@ fn now_string() -> String {
         Ok(duration) => duration.as_secs().to_string(),
         Err(_) => "0".to_string(),
     }
+}
+
+fn now_datetime() -> DateTime<Local> {
+    Local::now()
+}
+
+fn parse_streak_datetime(value: &str) -> Option<DateTime<Local>> {
+    value
+        .parse::<i64>()
+        .ok()
+        .and_then(|seconds| DateTime::from_timestamp(seconds, 0))
+        .map(|datetime| datetime.with_timezone(&Local))
+}
+
+fn is_same_local_day(first: DateTime<Local>, second: DateTime<Local>) -> bool {
+    first.year() == second.year() && first.ordinal() == second.ordinal()
 }
 
 fn parse_stack(serialized: &str) -> Vec<String> {
@@ -552,6 +573,9 @@ fn init_database(connection: &Connection) -> Result<(), String> {
               sprint TEXT NOT NULL,
               focus_score INTEGER NOT NULL,
               next_deadline TEXT NOT NULL,
+              streak_count INTEGER NOT NULL DEFAULT 0,
+              streak_last_rewarded_at TEXT,
+              streak_cycle_started_at TEXT,
               updated_at TEXT NOT NULL
             );
             ",
@@ -576,6 +600,24 @@ fn init_database(connection: &Connection) -> Result<(), String> {
         "tasks",
         "order_index",
         "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "user_snapshot",
+        "streak_count",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "user_snapshot",
+        "streak_last_rewarded_at",
+        "TEXT",
+    )?;
+    ensure_column(
+        connection,
+        "user_snapshot",
+        "streak_cycle_started_at",
+        "TEXT",
     )?;
 
     if added_project_order_column {
@@ -662,14 +704,17 @@ fn init_database(connection: &Connection) -> Result<(), String> {
 
     connection
         .execute(
-            "INSERT INTO user_snapshot (id, developer, sprint, focus_score, next_deadline, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO user_snapshot (id, developer, sprint, focus_score, next_deadline, streak_count, streak_last_rewarded_at, streak_cycle_started_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 Uuid::new_v4().to_string(),
                 "Developer",
                 "Current Sprint",
                 76,
                 "Upcoming milestone",
+                0,
+                Option::<String>::None,
+                Option::<String>::None,
                 timestamp
             ],
         )
@@ -866,7 +911,7 @@ fn get_agent_record(connection: &Connection, agent_id: &str) -> Result<Option<Lo
 fn get_user_snapshot_record(connection: &Connection) -> Result<Option<UserSnapshotRecord>, String> {
     connection
         .query_row(
-            "SELECT id, developer, sprint, focus_score, next_deadline FROM user_snapshot LIMIT 1",
+            "SELECT id, developer, sprint, focus_score, next_deadline, streak_count, streak_last_rewarded_at, streak_cycle_started_at FROM user_snapshot LIMIT 1",
             [],
             |row| {
                 Ok(UserSnapshotRecord {
@@ -875,11 +920,91 @@ fn get_user_snapshot_record(connection: &Connection) -> Result<Option<UserSnapsh
                     sprint: row.get(2)?,
                     focus_score: row.get(3)?,
                     next_deadline: row.get(4)?,
+                    streak_count: row.get(5)?,
+                    streak_last_rewarded_at: row.get(6)?,
+                    streak_cycle_started_at: row.get(7)?,
                 })
             },
         )
         .optional()
         .map_err(|error| error.to_string())
+}
+
+fn update_streak_snapshot(
+    connection: &Connection,
+    snapshot: &UserSnapshotRecord,
+    streak_count: i64,
+    streak_last_rewarded_at: Option<&str>,
+    streak_cycle_started_at: Option<&str>,
+) -> Result<(), String> {
+    connection
+        .execute(
+            "UPDATE user_snapshot
+             SET streak_count = ?1, streak_last_rewarded_at = ?2, streak_cycle_started_at = ?3, updated_at = ?4
+             WHERE id = ?5",
+            params![
+                streak_count,
+                streak_last_rewarded_at,
+                streak_cycle_started_at,
+                now_string(),
+                snapshot.id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+fn reset_expired_streak_if_needed(connection: &Connection) -> Result<UserSnapshotRecord, String> {
+    let snapshot =
+        get_user_snapshot_record(connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
+    let Some(cycle_started_at) = &snapshot.streak_cycle_started_at else {
+        return Ok(snapshot);
+    };
+
+    let Some(cycle_started_at) = parse_streak_datetime(cycle_started_at) else {
+        update_streak_snapshot(connection, &snapshot, 0, None, None)?;
+        return get_user_snapshot_record(connection)?
+            .ok_or_else(|| "Snapshot not found".to_string());
+    };
+
+    if now_datetime()
+        .signed_duration_since(cycle_started_at)
+        .num_seconds()
+        < 7 * 24 * 60 * 60
+    {
+        return Ok(snapshot);
+    }
+
+    update_streak_snapshot(connection, &snapshot, 0, None, None)?;
+    get_user_snapshot_record(connection)?.ok_or_else(|| "Snapshot not found".to_string())
+}
+
+fn reward_daily_streak_if_needed(connection: &Connection) -> Result<(), String> {
+    let snapshot = reset_expired_streak_if_needed(connection)?;
+    let now = now_datetime();
+
+    if let Some(last_rewarded_at) = &snapshot.streak_last_rewarded_at {
+        if parse_streak_datetime(last_rewarded_at)
+            .map(|last_rewarded_at| is_same_local_day(last_rewarded_at, now))
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+    }
+
+    let timestamp = now_string();
+    let cycle_started_at = snapshot
+        .streak_cycle_started_at
+        .as_deref()
+        .unwrap_or(&timestamp);
+    update_streak_snapshot(
+        connection,
+        &snapshot,
+        snapshot.streak_count + 1,
+        Some(&timestamp),
+        Some(cycle_started_at),
+    )
 }
 
 fn get_completion_rate(connection: &Connection) -> Result<i64, String> {
@@ -951,6 +1076,9 @@ fn sync_project_status(connection: &Connection, project_id: &str) -> Result<(), 
                 params![next_status, now_string(), project_id],
             )
             .map_err(|error| error.to_string())?;
+        if next_status == "done" {
+            reward_daily_streak_if_needed(connection)?;
+        }
     }
 
     Ok(())
@@ -1019,8 +1147,7 @@ fn get_project_view(
 }
 
 fn get_user_snapshot_view(connection: &Connection) -> Result<UserSnapshot, String> {
-    let record =
-        get_user_snapshot_record(connection)?.ok_or_else(|| "Snapshot not found".to_string())?;
+    let record = reset_expired_streak_if_needed(connection)?;
     let completion_rate = get_completion_rate(connection)?;
     let active_projects = get_projects_view(connection)?.len() as i64;
     let (completed_tasks, remaining_tasks) = get_active_task_stats(connection)?;
@@ -1032,6 +1159,7 @@ fn get_user_snapshot_view(connection: &Connection) -> Result<UserSnapshot, Strin
         remaining_tasks,
         next_deadline: record.next_deadline,
         completion_rate,
+        streak_count: record.streak_count,
     })
 }
 
@@ -1125,6 +1253,8 @@ fn update_project(
         })
         .unwrap_or(current.milestone);
 
+    let next_status = changes.status.unwrap_or(current.status.clone());
+
     connection
         .execute(
             "UPDATE projects
@@ -1135,7 +1265,7 @@ fn update_project(
                 next_client,
                 serialize_stack(&next_stack)?,
                 changes.priority.unwrap_or(current.priority),
-                changes.status.unwrap_or(current.status),
+                next_status,
                 next_summary,
                 next_milestone,
                 current.order_index,
@@ -1145,6 +1275,10 @@ fn update_project(
             ],
         )
         .map_err(|error| error.to_string())?;
+
+    if current.status != "done" && next_status == "done" {
+        reward_daily_streak_if_needed(&connection)?;
+    }
 
     get_project_view(&connection, &project_id)
 }
@@ -1290,6 +1424,8 @@ fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, St
         return Err("Project not found".to_string());
     }
 
+    let next_done = changes.done.unwrap_or(current.done);
+
     connection
         .execute(
             "UPDATE tasks
@@ -1297,11 +1433,7 @@ fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, St
              WHERE id = ?7",
             params![
                 changes.title.unwrap_or(current.title.clone()),
-                if changes.done.unwrap_or(current.done) {
-                    1
-                } else {
-                    0
-                },
+                if next_done { 1 } else { 0 },
                 next_project_id.clone(),
                 changes.urgency.unwrap_or(current.urgency),
                 if next_project_id != current.project_id {
@@ -1319,6 +1451,9 @@ fn update_task(task_id: String, changes: UpdateTaskInput) -> Result<TaskItem, St
         sync_project_status(&connection, &current.project_id)?;
     }
     sync_project_status(&connection, &next_project_id)?;
+    if !current.done && next_done {
+        reward_daily_streak_if_needed(&connection)?;
+    }
     get_task_record(&connection, &task_id)?.ok_or_else(|| "Task not found".to_string())
 }
 

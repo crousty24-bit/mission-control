@@ -4,6 +4,7 @@ import {
 	getUserSnapshotRecord,
 	updateUserSnapshot,
 } from "../repositories/userSnapshotRepository.js";
+import { resetExpiredStreakIfNeeded } from "./streakService.js";
 import { getCompletionRate } from "./taskService.js";
 
 function getActiveTaskStats() {
@@ -19,6 +20,7 @@ function getActiveTaskStats() {
 }
 
 export function getUserSnapshotView() {
+	resetExpiredStreakIfNeeded();
 	const snapshot = getUserSnapshotRecord();
 	if (!snapshot) {
 		return null;
@@ -33,6 +35,7 @@ export function getUserSnapshotView() {
 		remainingTasks,
 		nextDeadline: snapshot.nextDeadline,
 		completionRate: getCompletionRate(),
+		streakCount: snapshot.streakCount,
 	};
 }
 

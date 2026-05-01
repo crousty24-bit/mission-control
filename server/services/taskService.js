@@ -12,6 +12,7 @@ import {
 	deleteTask as removeTask,
 	updateTask,
 } from "../repositories/tasksRepository.js";
+import { rewardDailyStreakIfNeeded } from "./streakService.js";
 
 function syncProjectStatus(projectId) {
 	const project = getProjectById(projectId);
@@ -35,6 +36,9 @@ function syncProjectStatus(projectId) {
 
 	if (nextStatus !== project.status) {
 		updateProject(projectId, { status: nextStatus });
+		if (nextStatus === "done") {
+			rewardDailyStreakIfNeeded();
+		}
 	}
 }
 
@@ -84,6 +88,9 @@ export function patchTask(taskId, changes) {
 		syncProjectStatus(current.projectId);
 	}
 	syncProjectStatus(nextTask.projectId);
+	if (!current.done && nextTask.done) {
+		rewardDailyStreakIfNeeded();
+	}
 	return nextTask;
 }
 

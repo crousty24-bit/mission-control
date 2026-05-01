@@ -32,6 +32,7 @@ Mission Control provides:
 - an archive flow for `done` projects
 - a read-only `Archives` page for projects removed from the active workflow
 - a Todo List linked to the active project
+- a daily `Streak` counter in the topbar, powered by completed tasks and `done` projects
 - drag-and-drop reordering for tasks in the selected project
 - expandable compact lists with a `view all / show less` toggle for projects and tasks
 - local SQLite persistence
@@ -271,6 +272,7 @@ Biome procedure for routine changes:
 - the board project order can be rearranged with drag and drop and remains persisted
 - the task order inside a project can be rearranged with drag and drop and remains persisted
 - project and task sections stay compact by default, then expand through `view all / show less`
+- the daily streak gains at most +1 per day when a task is completed or a project becomes `done`, then resets to 0 after a 7-day cycle
 
 ## Linux / Tauri Notes
 

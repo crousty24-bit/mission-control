@@ -57,6 +57,7 @@ export const emptySnapshot: UserSnapshot = {
 	remainingTasks: 0,
 	nextDeadline: "No deadline",
 	completionRate: 0,
+	streakCount: 0,
 };
 
 export const AppDataContext = createContext<AppDataContextValue | null>(null);
