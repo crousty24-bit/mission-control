@@ -7,6 +7,9 @@ export const userSnapshot: UserSnapshot = {
 	remainingTasks: 4,
 	nextDeadline: "Upcoming milestone",
 	completionRate: 50,
+	streakCount: 0,
+	streakLastRewardedAt: null,
+	medalsRewardCount: 0,
 };
 
 export const projects: Project[] = [

@@ -98,6 +98,9 @@ export interface UserSnapshot {
 	remainingTasks: number;
 	nextDeadline: string;
 	completionRate: number;
+	streakCount: number;
+	streakLastRewardedAt: string | null;
+	medalsRewardCount: number;
 }
 
 export interface UpdateUserSnapshotInput {

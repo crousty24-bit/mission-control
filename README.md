@@ -32,6 +32,8 @@ Mission Control fournit :
 - un mode d’archivage pour les projets `done`
 - une page `Archives` en lecture seule pour les projets retirés du flux actif
 - une Todo List liée au projet actif
+- des compteurs `Streak` et `Medals reward` dans la topbar, alimentés par les tâches validées, les projets `done` et les archives
+- des notifications de récompense temporaires sur l’accueil et le dashboard
 - un réordonnancement drag & drop des tâches du projet sélectionné
 - des listes étendues avec bascule `view all / show less` pour les projets et les tâches
 - une persistance SQLite locale
@@ -272,6 +274,8 @@ Procédure Biome pour les changements courants :
 - l’ordre des projets dans le board peut être réorganisé par drag & drop et reste persisté
 - l’ordre des tâches d’un projet peut être réorganisé par drag & drop et reste persisté
 - les sections projets et tâches restent compactes par défaut puis s’étendent avec `view all / show less`
+- le streak journalier gagne au plus +1 par jour lorsqu’une tâche est validée ou qu’un projet passe `done`, puis repart à 0 après 7 jours de cycle
+- `Medals reward` correspond au nombre total de projets archivés et les récompenses déclenchent une notification locale de 3 secondes
 
 ## Notes Linux / Tauri
 

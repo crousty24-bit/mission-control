@@ -1,9 +1,14 @@
 import logoUrl from "../../src-tauri/icons/256x256.png";
+import { useUserSnapshot } from "../features/user/hooks";
 import { NavLink, Outlet } from "../lib/router";
+import { RewardNotification } from "./RewardNotification";
 
 export function AppShell() {
+	const { snapshot } = useUserSnapshot();
+
 	return (
 		<div className="app-shell">
+			<RewardNotification />
 			<header className="topbar">
 				<div className="topbar__brand">
 					<div className="brand-mark-frame" aria-hidden="true">
@@ -47,7 +52,40 @@ export function AppShell() {
 						Archives
 					</NavLink>
 				</nav>
-				<div className="topbar__spacer" aria-hidden="true" />
+				<div className="topbar__rewards">
+					<div className="topbar__reward">
+						<span className="topbar__reward-icon" aria-hidden="true">
+							<svg
+								viewBox="0 0 24 24"
+								role="img"
+								focusable="false"
+								aria-hidden="true"
+							>
+								<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+							</svg>
+						</span>
+						<span className="topbar__reward-copy">
+							<span className="topbar__reward-label">Streak</span>
+							<strong>+{snapshot.streakCount}</strong>
+						</span>
+					</div>
+					<div className="topbar__reward">
+						<span className="topbar__reward-icon" aria-hidden="true">
+							<svg
+								viewBox="0 0 24 24"
+								role="img"
+								focusable="false"
+								aria-hidden="true"
+							>
+								<path d="M12 2 8.6 8.9 1 10l5.5 5.4L5.2 23 12 19.4 18.8 23l-1.3-7.6L23 10l-7.6-1.1L12 2Z" />
+							</svg>
+						</span>
+						<span className="topbar__reward-copy">
+							<span className="topbar__reward-label">Medals reward</span>
+							<strong>+{snapshot.medalsRewardCount}</strong>
+						</span>
+					</div>
+				</div>
 			</header>
 
 			<main className="app-main">

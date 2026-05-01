@@ -125,4 +125,5 @@ export const seedSnapshot = {
 	sprint: "Current Sprint",
 	focusScore: 76,
 	nextDeadline: "Upcoming milestone",
+	streakCount: 0,
 };

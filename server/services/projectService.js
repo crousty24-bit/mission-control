@@ -12,6 +12,7 @@ import {
 	updateProject,
 } from "../repositories/projectsRepository.js";
 import { listTasks } from "../repositories/tasksRepository.js";
+import { rewardDailyStreakIfNeeded } from "./streakService.js";
 
 function getProjectProgress(projectId, tasks) {
 	const relatedTasks = tasks.filter((task) => task.projectId === projectId);
@@ -89,6 +90,8 @@ export function patchProject(projectId, changes) {
 			? current.summary
 			: changes.summary.trim().slice(0, 96) || "Aucun résumé pour le moment.";
 
+	const nextStatus = changes.status ?? current.status;
+
 	updateProject(projectId, {
 		name: nextName,
 		client:
@@ -97,13 +100,17 @@ export function patchProject(projectId, changes) {
 				: changes.client.trim() || "Projet personnel",
 		stack: changes.stack ?? current.stack,
 		priority: changes.priority ?? current.priority,
-		status: changes.status ?? current.status,
+		status: nextStatus,
 		summary: nextSummary,
 		milestone:
 			changes.milestone === undefined
 				? current.milestone
 				: changes.milestone.trim() || "Sans échéance définie",
 	});
+
+	if (current.status !== "done" && nextStatus === "done") {
+		rewardDailyStreakIfNeeded();
+	}
 
 	return getProjectView(projectId);
 }

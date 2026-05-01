@@ -7,6 +7,9 @@ function mapSnapshot(row) {
 		sprint: row.sprint,
 		focusScore: row.focus_score,
 		nextDeadline: row.next_deadline,
+		streakCount: row.streak_count,
+		streakLastRewardedAt: row.streak_last_rewarded_at,
+		streakCycleStartedAt: row.streak_cycle_started_at,
 		updatedAt: row.updated_at,
 	};
 }
@@ -31,7 +34,7 @@ export function updateUserSnapshot(changes) {
 	getDb()
 		.prepare(`
     UPDATE user_snapshot
-    SET developer = ?, sprint = ?, focus_score = ?, next_deadline = ?, updated_at = ?
+    SET developer = ?, sprint = ?, focus_score = ?, next_deadline = ?, streak_count = ?, streak_last_rewarded_at = ?, streak_cycle_started_at = ?, updated_at = ?
     WHERE id = ?
   `)
 		.run(
@@ -39,6 +42,9 @@ export function updateUserSnapshot(changes) {
 			current.sprint,
 			current.focusScore,
 			nextSnapshot.nextDeadline,
+			nextSnapshot.streakCount,
+			nextSnapshot.streakLastRewardedAt,
+			nextSnapshot.streakCycleStartedAt,
 			nextSnapshot.updatedAt,
 			current.id,
 		);

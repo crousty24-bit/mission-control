@@ -117,6 +117,9 @@ export function initDatabase() {
       sprint TEXT NOT NULL,
       focus_score INTEGER NOT NULL,
       next_deadline TEXT NOT NULL,
+      streak_count INTEGER NOT NULL DEFAULT 0,
+      streak_last_rewarded_at TEXT,
+      streak_cycle_started_at TEXT,
       updated_at TEXT NOT NULL
     );
   `);
@@ -140,6 +143,14 @@ export function initDatabase() {
 		"order_index",
 		"INTEGER NOT NULL DEFAULT 0",
 	);
+	ensureColumn(
+		db,
+		"user_snapshot",
+		"streak_count",
+		"INTEGER NOT NULL DEFAULT 0",
+	);
+	ensureColumn(db, "user_snapshot", "streak_last_rewarded_at", "TEXT");
+	ensureColumn(db, "user_snapshot", "streak_cycle_started_at", "TEXT");
 
 	if (addedProjectOrderColumn) {
 		hydrateProjectOrderIndex(db);
@@ -172,8 +183,8 @@ export function initDatabase() {
   `);
 
 	const snapshotStmt = db.prepare(`
-    INSERT INTO user_snapshot (id, developer, sprint, focus_score, next_deadline, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO user_snapshot (id, developer, sprint, focus_score, next_deadline, streak_count, streak_last_rewarded_at, streak_cycle_started_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
 	const timestamp = now();
@@ -230,6 +241,9 @@ export function initDatabase() {
 		seedSnapshot.sprint,
 		seedSnapshot.focusScore,
 		seedSnapshot.nextDeadline,
+		seedSnapshot.streakCount,
+		null,
+		null,
 		timestamp,
 	);
 }
