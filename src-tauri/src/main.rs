@@ -98,6 +98,8 @@ struct UserSnapshot {
     next_deadline: String,
     completion_rate: i64,
     streak_count: i64,
+    streak_last_rewarded_at: Option<String>,
+    medals_reward_count: i64,
 }
 
 #[derive(Deserialize)]
@@ -1160,6 +1162,8 @@ fn get_user_snapshot_view(connection: &Connection) -> Result<UserSnapshot, Strin
         next_deadline: record.next_deadline,
         completion_rate,
         streak_count: record.streak_count,
+        streak_last_rewarded_at: record.streak_last_rewarded_at,
+        medals_reward_count: get_archived_projects_view(connection)?.len() as i64,
     })
 }
 

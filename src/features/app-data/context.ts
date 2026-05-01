@@ -11,6 +11,12 @@ import type {
 	UserSnapshot,
 } from "../../types";
 
+export interface RewardNotification {
+	id: string;
+	message: string;
+	type: "medals" | "streak";
+}
+
 export interface AppDataContextValue {
 	agents: LocalAgent[];
 	archivedProjects: ProjectWithProgress[];
@@ -21,8 +27,10 @@ export interface AppDataContextValue {
 	isMutating: boolean;
 	projects: ProjectWithProgress[];
 	reload: () => Promise<void>;
+	rewardNotification: RewardNotification | null;
 	snapshot: UserSnapshot;
 	tasks: TaskItem[];
+	dismissRewardNotification: () => void;
 	createProject: (input: CreateProjectInput) => Promise<ProjectWithProgress>;
 	updateProject: (
 		projectId: string,
@@ -58,6 +66,8 @@ export const emptySnapshot: UserSnapshot = {
 	nextDeadline: "No deadline",
 	completionRate: 0,
 	streakCount: 0,
+	streakLastRewardedAt: null,
+	medalsRewardCount: 0,
 };
 
 export const AppDataContext = createContext<AppDataContextValue | null>(null);

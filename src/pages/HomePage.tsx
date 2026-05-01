@@ -1,4 +1,5 @@
 import { HeroOverview } from "../components/HeroOverview";
+import { RewardNotification } from "../components/RewardNotification";
 import { useProjects } from "../features/projects/hooks";
 import { useUserSnapshot } from "../features/user/hooks";
 
@@ -29,6 +30,7 @@ export function HomePage() {
 
 	return (
 		<div className="page-stack page-stack--home">
+			<RewardNotification />
 			<HeroOverview
 				snapshot={snapshot}
 				leadProject={leadProject}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ProjectBoard } from "../components/ProjectBoard";
 import { ProjectStatusSummary } from "../components/ProjectStatusSummary";
+import { RewardNotification } from "../components/RewardNotification";
 import { StatusPanel } from "../components/StatusPanel";
 import { TodoPanel } from "../components/TodoPanel";
 import { useProjectActions, useProjects } from "../features/projects/hooks";
@@ -60,6 +61,7 @@ export function DashboardPage() {
 
 	return (
 		<div className="page-stack">
+			<RewardNotification />
 			<StatusPanel snapshot={snapshot} />
 			<ProjectBoard
 				projects={projects}

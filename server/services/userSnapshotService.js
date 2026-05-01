@@ -1,4 +1,7 @@
-import { listProjects } from "../repositories/projectsRepository.js";
+import {
+	listArchivedProjects,
+	listProjects,
+} from "../repositories/projectsRepository.js";
 import { listTasks } from "../repositories/tasksRepository.js";
 import {
 	getUserSnapshotRecord,
@@ -36,6 +39,8 @@ export function getUserSnapshotView() {
 		nextDeadline: snapshot.nextDeadline,
 		completionRate: getCompletionRate(),
 		streakCount: snapshot.streakCount,
+		streakLastRewardedAt: snapshot.streakLastRewardedAt,
+		medalsRewardCount: listArchivedProjects().length,
 	};
 }
 

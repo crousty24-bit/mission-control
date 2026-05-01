@@ -60,8 +60,17 @@
 	min-width: 0;
 }
 
-.topbar__streak {
+.topbar__rewards {
 	justify-self: end;
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	min-width: 0;
+}
+
+.topbar__reward {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.65rem;
@@ -73,7 +82,7 @@
 	color: var(--text);
 }
 
-.topbar__streak-icon {
+.topbar__reward-icon {
 	display: grid;
 	place-items: center;
 	width: 1.9rem;
@@ -84,28 +93,78 @@
 	flex: 0 0 auto;
 }
 
-.topbar__streak-icon svg {
+.topbar__reward-icon svg {
 	width: 1rem;
 	height: 1rem;
 	fill: currentColor;
 }
 
-.topbar__streak-copy {
+.topbar__reward-copy {
 	display: grid;
 	gap: 0.05rem;
 	line-height: 1;
 }
 
-.topbar__streak-label {
+.topbar__reward-label {
 	text-transform: uppercase;
 	letter-spacing: 0.14em;
 	font-size: 0.68rem;
 	color: var(--text-muted);
 }
 
-.topbar__streak strong {
+.topbar__reward strong {
 	font-size: 1rem;
 	color: var(--text);
+}
+
+.reward-notification {
+	position: sticky;
+	top: 1rem;
+	z-index: 9;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	width: min(100%, 28rem);
+	padding: 0.85rem 0.9rem 0.85rem 1rem;
+	border: 1px solid rgba(255, 132, 71, 0.26);
+	border-radius: var(--radius-sm);
+	background: #171b20;
+	box-shadow: 0 16px 32px rgba(0, 0, 0, 0.24);
+	color: var(--text);
+}
+
+.reward-notification p {
+	margin: 0;
+	font-size: 0.94rem;
+	line-height: 1.45;
+}
+
+.reward-notification__close {
+	display: grid;
+	place-items: center;
+	width: 1.8rem;
+	height: 1.8rem;
+	border: 1px solid rgba(239, 68, 68, 0.28);
+	border-radius: 999px;
+	background: rgba(239, 68, 68, 0.1);
+	color: #ff6b6b;
+	cursor: pointer;
+	flex: 0 0 auto;
+	font: inherit;
+	font-size: 1.1rem;
+	line-height: 1;
+	transition:
+		border-color 140ms ease,
+		background 140ms ease,
+		color 140ms ease;
+}
+
+.reward-notification__close:hover,
+.reward-notification__close:focus-visible {
+	border-color: rgba(239, 68, 68, 0.55);
+	background: rgba(239, 68, 68, 0.18);
+	color: #ff8585;
 }
 
 .brand-mark {
@@ -1732,7 +1791,7 @@
 
 	.topbar__brand,
 	.topnav,
-	.topbar__streak {
+	.topbar__rewards {
 		justify-self: start;
 	}
 
