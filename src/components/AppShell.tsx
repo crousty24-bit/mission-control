@@ -1,12 +1,14 @@
 import logoUrl from "../../src-tauri/icons/256x256.png";
 import { useUserSnapshot } from "../features/user/hooks";
 import { NavLink, Outlet } from "../lib/router";
+import { RewardNotification } from "./RewardNotification";
 
 export function AppShell() {
 	const { snapshot } = useUserSnapshot();
 
 	return (
 		<div className="app-shell">
+			<RewardNotification />
 			<header className="topbar">
 				<div className="topbar__brand">
 					<div className="brand-mark-frame" aria-hidden="true">
