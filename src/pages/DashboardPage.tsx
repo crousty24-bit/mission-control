@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ProjectBoard } from "../components/ProjectBoard";
 import { ProjectStatusSummary } from "../components/ProjectStatusSummary";
 import { StatusPanel } from "../components/StatusPanel";
@@ -6,8 +6,32 @@ import { TodoPanel } from "../components/TodoPanel";
 import { useProjectActions, useProjects } from "../features/projects/hooks";
 import { useTaskActions, useTasks } from "../features/tasks/hooks";
 import { useUserSnapshot } from "../features/user/hooks";
+import type { Project } from "../types";
 
-export function DashboardPage() {
+interface DashboardPageProps {
+	projectSearchQuery: string;
+}
+
+function normalizeSearchValue(value: string) {
+	return value
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase();
+}
+
+function getProjectSearchText(project: Project) {
+	return normalizeSearchValue(
+		[
+			project.name,
+			project.client,
+			project.stack.join(" "),
+			project.summary,
+			project.milestone,
+		].join(" "),
+	);
+}
+
+export function DashboardPage({ projectSearchQuery }: DashboardPageProps) {
 	const { projects, isLoading, error } = useProjects();
 	const { snapshot } = useUserSnapshot();
 	const {
@@ -32,6 +56,21 @@ export function DashboardPage() {
 		(project) => project.id === resolvedProjectId,
 	);
 	const { tasks } = useTasks(resolvedProjectId || undefined);
+	const filteredProjects = useMemo(() => {
+		const searchTerms = normalizeSearchValue(projectSearchQuery)
+			.trim()
+			.split(/\s+/)
+			.filter(Boolean);
+
+		if (searchTerms.length === 0) {
+			return projects;
+		}
+
+		return projects.filter((project) => {
+			const searchText = getProjectSearchText(project);
+			return searchTerms.every((term) => searchText.includes(term));
+		});
+	}, [projectSearchQuery, projects]);
 
 	if (isLoading) {
 		return (
@@ -63,6 +102,8 @@ export function DashboardPage() {
 			<StatusPanel snapshot={snapshot} />
 			<ProjectBoard
 				projects={projects}
+				filteredProjects={filteredProjects}
+				projectSearchQuery={projectSearchQuery}
 				selectedProjectId={resolvedProjectId}
 				onSelectProject={setSelectedProjectId}
 				onCreateProject={async (project) => {

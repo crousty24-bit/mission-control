@@ -28,6 +28,7 @@ Mission Control fournit :
 
 - une landing page personnelle avec résumé de progression et métriques projet
 - un dashboard projets avec statut, priorité et progression réelle
+- une recherche topbar pour filtrer rapidement les projets actifs
 - un réordonnancement drag & drop des projets dans la pipeline active
 - un mode d’archivage pour les projets `done`
 - une page `Archives` en lecture seule pour les projets retirés du flux actif
@@ -45,6 +46,7 @@ Mission Control fournit :
 - thème sombre à accent orange pastel
 - progression projet calculée à partir des tâches
 - passage automatique à `done` quand toutes les tâches sont terminées
+- recherche locale des projets actifs depuis la topbar
 - réorganisation manuelle des projets et des tâches via drag & drop persistant
 - archivage distinct de la suppression pour sortir un projet terminé de la pipeline active
 - affichage compact avec extension à la demande via `view all / show less`
@@ -269,6 +271,7 @@ Procédure Biome pour les changements courants :
 
 - `Completion globale` reste calculée à partir des tâches terminées sur les projets non archivés
 - `Projets en cours` correspond à tous les projets non archivés visibles dans le board, y compris les `done`
+- la recherche topbar filtre uniquement les projets actifs du dashboard et n’affecte pas l’ordre persisté
 - un projet archivé disparaît du dashboard actif et reste consultable dans la page `Archives`
 - l’archivage n’est autorisé que pour un projet en statut `done`
 - l’ordre des projets dans le board peut être réorganisé par drag & drop et reste persisté

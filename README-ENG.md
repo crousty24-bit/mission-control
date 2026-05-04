@@ -28,6 +28,7 @@ Mission Control provides:
 
 - a personal landing page with progress-oriented project metrics
 - a project dashboard with real status, priority, and progress
+- a topbar search to quickly filter active projects
 - drag-and-drop reordering for projects in the active pipeline
 - an archive flow for `done` projects
 - a read-only `Archives` page for projects removed from the active workflow
@@ -45,6 +46,7 @@ Mission Control provides:
 - dark UI with a pastel orange accent
 - project progress calculated from tasks
 - automatic transition to `done` when all tasks are completed
+- local active-project search from the topbar
 - persistent manual project and task reordering through drag and drop
 - archiving distinct from deletion, so finished projects leave the active pipeline cleanly
 - compact default views with on-demand expansion through `view all / show less`
@@ -268,6 +270,7 @@ Biome procedure for routine changes:
 
 - `Global completion` is still calculated from completed tasks across non-archived projects
 - `Active projects` means every non-archived project visible in the board, including `done`
+- the topbar search filters only dashboard active projects and does not affect persisted order
 - an archived project disappears from the active dashboard and remains visible in the `Archives` page
 - archiving is only allowed when a project is in `done`
 - the board project order can be rearranged with drag and drop and remains persisted

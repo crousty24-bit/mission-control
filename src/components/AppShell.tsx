@@ -3,7 +3,15 @@ import { useUserSnapshot } from "../features/user/hooks";
 import { NavLink, Outlet } from "../lib/router";
 import { RewardNotification } from "./RewardNotification";
 
-export function AppShell() {
+interface AppShellProps {
+	projectSearchQuery: string;
+	onProjectSearchChange: (query: string) => void;
+}
+
+export function AppShell({
+	projectSearchQuery,
+	onProjectSearchChange,
+}: AppShellProps) {
 	const { snapshot } = useUserSnapshot();
 
 	return (
@@ -52,6 +60,35 @@ export function AppShell() {
 						Archives
 					</NavLink>
 				</nav>
+				<label className="topbar__search">
+					<span className="topbar__search-icon" aria-hidden="true">
+						<svg
+							viewBox="0 0 24 24"
+							role="img"
+							focusable="false"
+							aria-hidden="true"
+						>
+							<path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm4.9 9.1 4.1 4.1-1.4 1.4-4.1-4.1 1.4-1.4Z" />
+						</svg>
+					</span>
+					<input
+						type="text"
+						value={projectSearchQuery}
+						placeholder="rechercher dans les projets"
+						aria-label="Rechercher dans les projets"
+						onChange={(event) => onProjectSearchChange(event.target.value)}
+					/>
+					{projectSearchQuery ? (
+						<button
+							type="button"
+							className="topbar__search-reset"
+							aria-label="Réinitialiser la recherche"
+							onClick={() => onProjectSearchChange("")}
+						>
+							×
+						</button>
+					) : null}
+				</label>
 				<div className="topbar__rewards">
 					<div className="topbar__reward">
 						<span className="topbar__reward-icon" aria-hidden="true">

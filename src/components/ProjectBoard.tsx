@@ -19,6 +19,8 @@ import { ProjectModal } from "./ProjectModal";
 
 interface ProjectBoardProps {
 	projects: Project[];
+	filteredProjects: Project[];
+	projectSearchQuery: string;
 	selectedProjectId: string;
 	onSelectProject: (projectId: string) => void;
 	onCreateProject: (
@@ -85,6 +87,8 @@ function orderProjects(
 
 export function ProjectBoard({
 	projects,
+	filteredProjects,
+	projectSearchQuery,
 	selectedProjectId,
 	onSelectProject,
 	onCreateProject,
@@ -95,7 +99,9 @@ export function ProjectBoard({
 	onArchiveProjects,
 	onReorderProjects,
 }: ProjectBoardProps) {
-	const [isShowingAllProjects, setIsShowingAllProjects] = useState(false);
+	const [expandedProjectListScope, setExpandedProjectListScope] = useState<
+		string | null
+	>(null);
 	const [modalState, setModalState] = useState<{
 		mode: "create" | "edit" | "view";
 		project?: Project;
@@ -113,10 +119,26 @@ export function ProjectBoard({
 	const orderedProjects = useMemo(() => {
 		return orderProjects(projects, projectOrderOverride);
 	}, [projectOrderOverride, projects]);
+	const projectSearchScope = projectSearchQuery.trim();
+	const isProjectSearchActive = projectSearchScope.length > 0;
+	const isShowingAllProjects = expandedProjectListScope === projectSearchScope;
+	const filteredProjectIds = useMemo(
+		() => new Set(filteredProjects.map((project) => project.id)),
+		[filteredProjects],
+	);
+	const displayProjects = useMemo(
+		() =>
+			isProjectSearchActive
+				? orderedProjects.filter((project) =>
+						filteredProjectIds.has(project.id),
+					)
+				: orderedProjects,
+		[filteredProjectIds, isProjectSearchActive, orderedProjects],
+	);
 	const visibleProjects = useMemo(
 		() =>
-			isShowingAllProjects ? orderedProjects : orderedProjects.slice(0, 6),
-		[isShowingAllProjects, orderedProjects],
+			isShowingAllProjects ? displayProjects : displayProjects.slice(0, 6),
+		[displayProjects, isShowingAllProjects],
 	);
 	const orderedProjectsRef = useRef(orderedProjects);
 	const projectsRef = useRef(projects);
@@ -371,60 +393,76 @@ export function ProjectBoard({
 				</div>
 			</div>
 
-			<div className="project-board">
-				{visibleProjects.map((project) => (
-					<ProjectCard
-						key={project.id}
-						project={project}
-						isSelected={project.id === selectedProjectId}
-						isArchiveSelectionMode={isArchiveSelectionActive}
-						isArchiveSelected={effectiveSelectedArchiveIds.includes(project.id)}
-						isDragging={draggedProjectId === project.id}
-						dragHandle={
-							!isArchiveSelectionActive ? (
-								<button
-									type="button"
-									className="drag-handle"
-									aria-label={`Réordonner ${project.name}`}
-									title={`Réordonner ${project.name}`}
-									onClick={(event) => {
-										event.preventDefault();
-										event.stopPropagation();
-									}}
-									onPointerDown={handleProjectPointerDown(project.id)}
-								>
-									<GripIcon />
-								</button>
-							) : null
-						}
-						onToggleArchiveSelection={toggleArchiveSelection}
-						onSelect={onSelectProject}
-						onOpenProject={(projectId) =>
-							setModalState({
-								mode: "view",
-								project: orderedProjects.find((item) => item.id === projectId),
-							})
-						}
-						onEditProject={(projectId) =>
-							setModalState({
-								mode: "edit",
-								project: orderedProjects.find((item) => item.id === projectId),
-							})
-						}
-						onDeleteProject={onDeleteProject}
-						onUpdateStatus={onUpdateStatus}
-						onUpdatePriority={onUpdatePriority}
-					/>
-				))}
-			</div>
+			{displayProjects.length === 0 ? (
+				<div className="project-board__empty">
+					Aucun projet ne correspond à cette recherche.
+				</div>
+			) : (
+				<div className="project-board">
+					{visibleProjects.map((project) => (
+						<ProjectCard
+							key={project.id}
+							project={project}
+							isSelected={project.id === selectedProjectId}
+							isArchiveSelectionMode={isArchiveSelectionActive}
+							isArchiveSelected={effectiveSelectedArchiveIds.includes(
+								project.id,
+							)}
+							isDragging={draggedProjectId === project.id}
+							dragHandle={
+								!isArchiveSelectionActive && !isProjectSearchActive ? (
+									<button
+										type="button"
+										className="drag-handle"
+										aria-label={`Réordonner ${project.name}`}
+										title={`Réordonner ${project.name}`}
+										onClick={(event) => {
+											event.preventDefault();
+											event.stopPropagation();
+										}}
+										onPointerDown={handleProjectPointerDown(project.id)}
+									>
+										<GripIcon />
+									</button>
+								) : null
+							}
+							onToggleArchiveSelection={toggleArchiveSelection}
+							onSelect={onSelectProject}
+							onOpenProject={(projectId) =>
+								setModalState({
+									mode: "view",
+									project: orderedProjects.find(
+										(item) => item.id === projectId,
+									),
+								})
+							}
+							onEditProject={(projectId) =>
+								setModalState({
+									mode: "edit",
+									project: orderedProjects.find(
+										(item) => item.id === projectId,
+									),
+								})
+							}
+							onDeleteProject={onDeleteProject}
+							onUpdateStatus={onUpdateStatus}
+							onUpdatePriority={onUpdatePriority}
+						/>
+					))}
+				</div>
+			)}
 
-			{orderedProjects.length > 6 ? (
+			{displayProjects.length > 6 ? (
 				<div className="section-footer-action">
 					<button
 						type="button"
 						className="section-link-action"
 						aria-expanded={isShowingAllProjects}
-						onClick={() => setIsShowingAllProjects((current) => !current)}
+						onClick={() =>
+							setExpandedProjectListScope((current) =>
+								current === projectSearchScope ? null : projectSearchScope,
+							)
+						}
 					>
 						{isShowingAllProjects ? "show less" : "view all"}
 					</button>
