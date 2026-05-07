@@ -1,11 +1,16 @@
 import type {
+	CalendarEvent,
 	CreateAgentInput,
+	CreateCalendarEventInput,
 	CreateProjectInput,
 	CreateTaskInput,
+	DashboardNote,
 	LocalAgent,
 	ProjectWithProgress,
 	TaskItem,
 	UpdateAgentInput,
+	UpdateCalendarEventInput,
+	UpdateDashboardNoteInput,
 	UpdateProjectInput,
 	UpdateTaskInput,
 	UpdateUserSnapshotInput,
@@ -30,6 +35,19 @@ export interface MissionControlDataSource {
 	updateTask: (taskId: string, input: UpdateTaskInput) => Promise<TaskItem>;
 	reorderTasks: (projectId: string, taskIds: string[]) => Promise<void>;
 	deleteTask: (taskId: string) => Promise<void>;
+	getCalendarEvents: () => Promise<CalendarEvent[]>;
+	createCalendarEvent: (
+		input: CreateCalendarEventInput,
+	) => Promise<CalendarEvent>;
+	updateCalendarEvent: (
+		eventId: string,
+		input: UpdateCalendarEventInput,
+	) => Promise<CalendarEvent>;
+	deleteCalendarEvent: (eventId: string) => Promise<void>;
+	getDashboardNote: () => Promise<DashboardNote>;
+	updateDashboardNote: (
+		input: UpdateDashboardNoteInput,
+	) => Promise<DashboardNote>;
 	getAgents: () => Promise<LocalAgent[]>;
 	createAgent: (input: CreateAgentInput) => Promise<LocalAgent>;
 	updateAgent: (

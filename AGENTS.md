@@ -23,6 +23,7 @@ Le périmètre du projet reste volontairement limité :
 - Thème sombre à accent orange pastel
 - Landing avec résumé personnel et métriques projet
 - Dashboard avec pipeline active, résumé visuel des statuts projet et section `Statut utilisateur`
+- Menu dashboard latéral réductible `Organisation` avec graphique global des tâches TDL terminées, Planning hebdomadaire et Notes markdown persistées
 - Page `Archives` en lecture seule pour les projets archivés
 - Todo List liée au projet actif
 
@@ -74,6 +75,9 @@ L’AppImage n’est plus le bundle par défaut du projet.
 - l’archivage est distinct de la suppression ; seuls les projets `done` peuvent être archivés
 - le snapshot utilisateur agrège au minimum tâches accomplies, tâches restantes, projets en cours et completion globale
 - la landing réutilise ces métriques avec une première carte centrée sur la completion globale
+- le graphique sidebar des tâches terminées s’appuie sur l’état courant global des tâches TDL, sans ventilation par projet
+- le planning dashboard combine événements/reminders libres persistés et milestones projet dérivées ; les milestones non parseables restent à planifier
+- les notes dashboard correspondent à une note unique persistée localement ; l’UI actuelle est une textarea markdown sans aperçu
 
 ## Scripts utiles
 
@@ -118,6 +122,7 @@ Selon le besoin :
 ## UX et design
 
 - garder un dashboard lisible, compact et exploitable au quotidien
+- garder la sidebar dashboard compacte ; ses widgets doivent rester lisibles sans casser le dashboard poussé à droite
 - préserver le thème sombre orange pastel
 - conserver l’accent orange désaturé actuel et les contrastes forts entre fonds et surfaces
 - éviter les effets visuels coûteux pour le runtime desktop
@@ -128,6 +133,7 @@ Selon le besoin :
 
 - la DB desktop Tauri vit hors du repo dans le dossier applicatif utilisateur
 - la DB `server/data/mission-control.sqlite` sert uniquement au fallback web local
+- les tables `calendar_events` et `dashboard_notes` existent dans les DB SQLite Node/Tauri
 - aucun fichier SQLite local ne doit être versionné
 - le mode `tauri:dev` est le mode de développement desktop principal
 - le `.deb` installé est un snapshot packagé : après un changement source, il faut rebuild puis réinstaller

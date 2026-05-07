@@ -1,11 +1,16 @@
 import { createContext } from "react";
 import type {
+	CalendarEvent,
 	CreateAgentInput,
+	CreateCalendarEventInput,
 	CreateProjectInput,
+	DashboardNote,
 	LocalAgent,
 	ProjectWithProgress,
 	TaskItem,
 	UpdateAgentInput,
+	UpdateCalendarEventInput,
+	UpdateDashboardNoteInput,
 	UpdateProjectInput,
 	UpdateUserSnapshotInput,
 	UserSnapshot,
@@ -20,6 +25,8 @@ export interface RewardNotification {
 export interface AppDataContextValue {
 	agents: LocalAgent[];
 	archivedProjects: ProjectWithProgress[];
+	calendarEvents: CalendarEvent[];
+	dashboardNote: DashboardNote;
 	dataSourceLabel: string;
 	dataSourceMode: "http" | "tauri";
 	error: string | null;
@@ -50,6 +57,17 @@ export interface AppDataContextValue {
 	) => Promise<TaskItem>;
 	reorderTasks: (projectId: string, taskIds: string[]) => Promise<void>;
 	deleteTask: (taskId: string) => Promise<void>;
+	createCalendarEvent: (
+		input: CreateCalendarEventInput,
+	) => Promise<CalendarEvent>;
+	updateCalendarEvent: (
+		eventId: string,
+		input: UpdateCalendarEventInput,
+	) => Promise<CalendarEvent>;
+	deleteCalendarEvent: (eventId: string) => Promise<void>;
+	updateDashboardNote: (
+		input: UpdateDashboardNoteInput,
+	) => Promise<DashboardNote>;
 	createAgent: (input: CreateAgentInput) => Promise<LocalAgent>;
 	updateAgent: (
 		agentId: string,
@@ -68,6 +86,12 @@ export const emptySnapshot: UserSnapshot = {
 	streakCount: 0,
 	streakLastRewardedAt: null,
 	medalsRewardCount: 0,
+};
+
+export const emptyDashboardNote: DashboardNote = {
+	id: "dashboard-note",
+	content: "",
+	updatedAt: new Date(0).toISOString(),
 };
 
 export const AppDataContext = createContext<AppDataContextValue | null>(null);

@@ -1,8 +1,11 @@
 import type {
 	CreateAgentInput,
+	CreateCalendarEventInput,
 	CreateProjectInput,
 	CreateTaskInput,
 	UpdateAgentInput,
+	UpdateCalendarEventInput,
+	UpdateDashboardNoteInput,
 	UpdateProjectInput,
 	UpdateTaskInput,
 	UpdateUserSnapshotInput,
@@ -63,6 +66,27 @@ export const httpDataSource: MissionControlDataSource = {
 		request(`/api/tasks/${taskId}`, {
 			method: "DELETE",
 		}).then(() => undefined),
+	getCalendarEvents: () => request("/api/calendar-events"),
+	createCalendarEvent: (input: CreateCalendarEventInput) =>
+		request("/api/calendar-events", {
+			method: "POST",
+			body: JSON.stringify(input),
+		}),
+	updateCalendarEvent: (eventId: string, input: UpdateCalendarEventInput) =>
+		request(`/api/calendar-events/${eventId}`, {
+			method: "PATCH",
+			body: JSON.stringify(input),
+		}),
+	deleteCalendarEvent: (eventId: string) =>
+		request(`/api/calendar-events/${eventId}`, {
+			method: "DELETE",
+		}).then(() => undefined),
+	getDashboardNote: () => request("/api/dashboard-note"),
+	updateDashboardNote: (input: UpdateDashboardNoteInput) =>
+		request("/api/dashboard-note", {
+			method: "PATCH",
+			body: JSON.stringify(input),
+		}),
 	getAgents: () => request("/api/agents"),
 	createAgent: (input: CreateAgentInput) =>
 		request("/api/agents", {
