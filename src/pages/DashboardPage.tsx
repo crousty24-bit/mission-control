@@ -12,6 +12,13 @@ interface DashboardPageProps {
 	projectSearchQuery: string;
 }
 
+const dashboardMenuItems = [
+	{ label: "Activités", detail: "Flux local" },
+	{ label: "Planning", detail: "À venir" },
+	{ label: "Notes", detail: "Capture" },
+	{ label: "Suivi", detail: "Repères" },
+];
+
 function normalizeSearchValue(value: string) {
 	return value
 		.normalize("NFD")
@@ -47,6 +54,7 @@ export function DashboardPage({ projectSearchQuery }: DashboardPageProps) {
 	const { createTask, deleteTask, editTask, reorderTasks, toggleTask } =
 		useTaskActions();
 	const [selectedProjectId, setSelectedProjectId] = useState("");
+	const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
 	const resolvedProjectId =
 		selectedProjectId &&
 		projects.some((project) => project.id === selectedProjectId)
@@ -98,60 +106,136 @@ export function DashboardPage({ projectSearchQuery }: DashboardPageProps) {
 	}
 
 	return (
-		<div className="page-stack">
-			<StatusPanel snapshot={snapshot} />
-			<ProjectBoard
-				projects={projects}
-				filteredProjects={filteredProjects}
-				projectSearchQuery={projectSearchQuery}
-				selectedProjectId={resolvedProjectId}
-				onSelectProject={setSelectedProjectId}
-				onCreateProject={async (project) => {
-					const createdProject = await createProject(project);
-					setSelectedProjectId(createdProject.id);
-					return createdProject;
-				}}
-				onEditProject={editProject}
-				onUpdateStatus={(projectId, status) => {
-					void updateProjectStatus(projectId, status);
-				}}
-				onUpdatePriority={(projectId, priority) => {
-					void updateProjectPriority(projectId, priority);
-				}}
-				onDeleteProject={(projectId) => {
-					void deleteProject(projectId);
-				}}
-				onArchiveProjects={(projectIds) => archiveProjects(projectIds)}
-				onReorderProjects={(projectIds) => reorderProjects(projectIds)}
-			/>
-
-			<section className="dashboard-grid">
-				<TodoPanel
-					key={resolvedProjectId}
-					tasks={tasks}
-					selectedProject={selectedProject}
-					onToggleTask={(taskId) => {
-						void toggleTask(taskId);
-					}}
-					onAddTask={(title, projectId) => {
-						void createTask({ title, projectId, urgency: "today" });
-					}}
-					onDeleteTask={(taskId) => {
-						void deleteTask(taskId);
-					}}
-					onEditTask={(taskId, title) => {
-						void editTask(taskId, title);
-					}}
-					onReorderTasks={(projectId, taskIds) =>
-						reorderTasks(projectId, taskIds)
+		<div
+			className={
+				isDashboardMenuOpen
+					? "dashboard-layout dashboard-layout--open"
+					: "dashboard-layout"
+			}
+		>
+			<aside
+				id="dashboard-activity-menu"
+				className="dashboard-sidebar"
+				aria-label="Activités du dashboard"
+			>
+				<button
+					type="button"
+					className="dashboard-sidebar__toggle"
+					aria-controls="dashboard-activity-menu"
+					aria-expanded={isDashboardMenuOpen}
+					aria-label={
+						isDashboardMenuOpen
+							? "Réduire le menu dashboard"
+							: "Ouvrir le menu dashboard"
 					}
-				/>
-				<ProjectStatusSummary projects={projects} />
-			</section>
+					title={
+						isDashboardMenuOpen
+							? "Réduire le menu dashboard"
+							: "Ouvrir le menu dashboard"
+					}
+					onClick={() => setIsDashboardMenuOpen((isOpen) => !isOpen)}
+				>
+					<span className="dashboard-sidebar__toggle-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+							<path
+								d="M4 7h16M4 12h16M4 17h16"
+								fill="none"
+								stroke="currentColor"
+								strokeLinecap="round"
+								strokeWidth="1.8"
+							/>
+						</svg>
+					</span>
+					<span className="sr-only">
+						{isDashboardMenuOpen
+							? "Réduire le menu dashboard"
+							: "Ouvrir le menu dashboard"}
+					</span>
+				</button>
 
-			{isMutating ? (
-				<p className="mutating-indicator">Synchronisation locale en cours...</p>
-			) : null}
+				<div
+					className="dashboard-sidebar__panel"
+					aria-hidden={!isDashboardMenuOpen}
+				>
+					<div className="dashboard-sidebar__header">
+						<p className="eyebrow">Dashboard</p>
+						<h2>Activités</h2>
+					</div>
+
+					<nav className="dashboard-sidebar__nav" aria-label="Menu dashboard">
+						{dashboardMenuItems.map((item) => (
+							<button
+								key={item.label}
+								type="button"
+								className="dashboard-sidebar__item"
+								disabled
+								aria-disabled="true"
+							>
+								<span>{item.label}</span>
+								<small>{item.detail}</small>
+							</button>
+						))}
+					</nav>
+				</div>
+			</aside>
+
+			<div className="page-stack dashboard-layout__content">
+				<StatusPanel snapshot={snapshot} />
+				<ProjectBoard
+					projects={projects}
+					filteredProjects={filteredProjects}
+					projectSearchQuery={projectSearchQuery}
+					selectedProjectId={resolvedProjectId}
+					onSelectProject={setSelectedProjectId}
+					onCreateProject={async (project) => {
+						const createdProject = await createProject(project);
+						setSelectedProjectId(createdProject.id);
+						return createdProject;
+					}}
+					onEditProject={editProject}
+					onUpdateStatus={(projectId, status) => {
+						void updateProjectStatus(projectId, status);
+					}}
+					onUpdatePriority={(projectId, priority) => {
+						void updateProjectPriority(projectId, priority);
+					}}
+					onDeleteProject={(projectId) => {
+						void deleteProject(projectId);
+					}}
+					onArchiveProjects={(projectIds) => archiveProjects(projectIds)}
+					onReorderProjects={(projectIds) => reorderProjects(projectIds)}
+				/>
+
+				<section className="dashboard-grid">
+					<TodoPanel
+						key={resolvedProjectId}
+						tasks={tasks}
+						selectedProject={selectedProject}
+						onToggleTask={(taskId) => {
+							void toggleTask(taskId);
+						}}
+						onAddTask={(title, projectId) => {
+							void createTask({ title, projectId, urgency: "today" });
+						}}
+						onDeleteTask={(taskId) => {
+							void deleteTask(taskId);
+						}}
+						onEditTask={(taskId, title) => {
+							void editTask(taskId, title);
+						}}
+						onReorderTasks={(projectId, taskIds) =>
+							reorderTasks(projectId, taskIds)
+						}
+					/>
+					<ProjectStatusSummary projects={projects} />
+				</section>
+
+				{isMutating ? (
+					<p className="mutating-indicator">
+						Synchronisation locale en cours...
+					</p>
+				) : null}
+			</div>
 		</div>
 	);
 }
