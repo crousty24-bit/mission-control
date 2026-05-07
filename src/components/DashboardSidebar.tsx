@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import type {
 	CalendarEvent,
 	CalendarEventKind,
@@ -141,152 +141,6 @@ function parseProjectMilestone(
 	};
 }
 
-function renderInlineMarkdown(value: string, keyPrefix: string) {
-	const nodes: ReactNode[] = [];
-	const tokenPattern =
-		/(\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
-	let currentIndex = 0;
-	let tokenIndex = 0;
-
-	for (const match of value.matchAll(tokenPattern)) {
-		if (match.index === undefined) {
-			continue;
-		}
-
-		if (match.index > currentIndex) {
-			nodes.push(value.slice(currentIndex, match.index));
-		}
-
-		const key = `${keyPrefix}-${tokenIndex}`;
-		if (match[2] && match[3]) {
-			nodes.push(
-				<a key={key} href={match[3]} target="_blank" rel="noreferrer">
-					{match[2]}
-				</a>,
-			);
-		} else if (match[4]) {
-			nodes.push(<code key={key}>{match[4]}</code>);
-		} else if (match[5]) {
-			nodes.push(<strong key={key}>{match[5]}</strong>);
-		} else if (match[6]) {
-			nodes.push(<em key={key}>{match[6]}</em>);
-		}
-
-		currentIndex = match.index + match[0].length;
-		tokenIndex += 1;
-	}
-
-	if (currentIndex < value.length) {
-		nodes.push(value.slice(currentIndex));
-	}
-
-	return nodes;
-}
-
-function renderMarkdown(content: string) {
-	const lines = content.split("\n");
-	const nodes: ReactNode[] = [];
-	let listItems: Array<{ key: string; nodes: ReactNode[] }> = [];
-	let codeLines: string[] = [];
-	let isCodeBlock = false;
-	let blockIndex = 0;
-
-	const flushList = () => {
-		if (listItems.length === 0) {
-			return;
-		}
-		nodes.push(
-			<ul key={`list-${blockIndex}`}>
-				{listItems.map((item) => (
-					<li key={item.key}>{item.nodes}</li>
-				))}
-			</ul>,
-		);
-		listItems = [];
-		blockIndex += 1;
-	};
-
-	const flushCodeBlock = () => {
-		if (codeLines.length === 0) {
-			return;
-		}
-		nodes.push(
-			<pre key={`code-${blockIndex}`}>
-				<code>{codeLines.join("\n")}</code>
-			</pre>,
-		);
-		codeLines = [];
-		blockIndex += 1;
-	};
-
-	for (const line of lines) {
-		if (line.trim().startsWith("```")) {
-			if (isCodeBlock) {
-				flushCodeBlock();
-			} else {
-				flushList();
-			}
-			isCodeBlock = !isCodeBlock;
-			continue;
-		}
-
-		if (isCodeBlock) {
-			codeLines.push(line);
-			continue;
-		}
-
-		const trimmed = line.trim();
-		if (!trimmed) {
-			flushList();
-			continue;
-		}
-
-		if (trimmed.startsWith("- ")) {
-			const key = `li-${blockIndex}-${listItems.length}-${trimmed}`;
-			listItems.push({
-				key,
-				nodes: renderInlineMarkdown(trimmed.slice(2), key),
-			});
-			continue;
-		}
-
-		flushList();
-		if (trimmed.startsWith("### ")) {
-			nodes.push(
-				<h4 key={`heading-${blockIndex}`}>
-					{renderInlineMarkdown(trimmed.slice(4), `h4-${blockIndex}`)}
-				</h4>,
-			);
-		} else if (trimmed.startsWith("## ")) {
-			nodes.push(
-				<h3 key={`heading-${blockIndex}`}>
-					{renderInlineMarkdown(trimmed.slice(3), `h3-${blockIndex}`)}
-				</h3>,
-			);
-		} else if (trimmed.startsWith("# ")) {
-			nodes.push(
-				<h2 key={`heading-${blockIndex}`}>
-					{renderInlineMarkdown(trimmed.slice(2), `h2-${blockIndex}`)}
-				</h2>,
-			);
-		} else {
-			nodes.push(
-				<p key={`paragraph-${blockIndex}`}>
-					{renderInlineMarkdown(trimmed, `p-${blockIndex}`)}
-				</p>,
-			);
-		}
-		blockIndex += 1;
-	}
-
-	flushList();
-	if (isCodeBlock) {
-		flushCodeBlock();
-	}
-
-	return nodes;
-}
-
 function DashboardNoteEditor({
 	dashboardNote,
 	isMutating,
@@ -297,7 +151,6 @@ function DashboardNoteEditor({
 	onUpdateDashboardNote: (input: { content: string }) => Promise<DashboardNote>;
 }) {
 	const [noteDraft, setNoteDraft] = useState(dashboardNote.content);
-	const markdownPreview = useMemo(() => renderMarkdown(noteDraft), [noteDraft]);
 
 	const handleSaveNote = async () => {
 		await onUpdateDashboardNote({ content: noteDraft });
@@ -311,9 +164,6 @@ function DashboardNoteEditor({
 				aria-label="Notes dashboard markdown"
 				onChange={(event) => setNoteDraft(event.target.value)}
 			/>
-			<section className="dashboard-note__preview" aria-label="Aperçu markdown">
-				{markdownPreview}
-			</section>
 			<button
 				type="button"
 				disabled={isMutating || noteDraft === dashboardNote.content}
@@ -422,7 +272,7 @@ export function DashboardSidebar({
 			<div className="dashboard-sidebar__panel" aria-hidden={!isMenuOpen}>
 				<div className="dashboard-sidebar__header">
 					<p className="eyebrow">Dashboard</p>
-					<h2>Activités</h2>
+					<h2>Organisation</h2>
 				</div>
 
 				<section className="dashboard-feature">
@@ -439,12 +289,6 @@ export function DashboardSidebar({
 					{isPlanningOpen ? (
 						<div className="dashboard-feature__body">
 							<div className="dashboard-weeknav">
-								<button
-									type="button"
-									onClick={() => setWeekStart((date) => addDays(date, -7))}
-								>
-									Préc.
-								</button>
 								<strong>
 									{weekDays[0].date.toLocaleDateString("fr-FR", {
 										day: "2-digit",
@@ -456,6 +300,12 @@ export function DashboardSidebar({
 										month: "short",
 									})}
 								</strong>
+								<button
+									type="button"
+									onClick={() => setWeekStart((date) => addDays(date, -7))}
+								>
+									Préc.
+								</button>
 								<button
 									type="button"
 									onClick={() => setWeekStart((date) => addDays(date, 7))}
@@ -502,6 +352,15 @@ export function DashboardSidebar({
 											))}
 											{dayEvents.map((item) => (
 												<div className="dashboard-calendar-item" key={item.id}>
+													<button
+														type="button"
+														className="dashboard-calendar-item__delete"
+														aria-label={`Supprimer ${item.title}`}
+														title={`Supprimer ${item.title}`}
+														onClick={() => void onDeleteCalendarEvent(item.id)}
+													>
+														×
+													</button>
 													<span>{item.time ?? "--:--"}</span>
 													<strong>{item.title}</strong>
 													<small>
@@ -510,12 +369,6 @@ export function DashboardSidebar({
 															: "Événement"}
 													</small>
 													{item.notes ? <p>{item.notes}</p> : null}
-													<button
-														type="button"
-														onClick={() => void onDeleteCalendarEvent(item.id)}
-													>
-														Supprimer
-													</button>
 												</div>
 											))}
 										</div>
