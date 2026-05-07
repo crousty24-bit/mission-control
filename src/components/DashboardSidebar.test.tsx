@@ -1,4 +1,7 @@
-import { renderToStaticMarkup } from "react-dom/server";
+// @vitest-environment jsdom
+
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { CalendarEvent, DashboardNote, Project, TaskItem } from "../types";
 import { DashboardSidebar } from "./DashboardSidebar";
@@ -67,7 +70,7 @@ const dashboardNote: DashboardNote = {
 };
 
 function renderSidebar(isMenuOpen = true) {
-	return renderToStaticMarkup(
+	return render(
 		<DashboardSidebar
 			calendarEvents={calendarEvents}
 			dashboardNote={dashboardNote}
@@ -85,35 +88,120 @@ function renderSidebar(isMenuOpen = true) {
 
 describe("DashboardSidebar", () => {
 	it("renders the accessible toggle state and organisation header", () => {
-		const openMarkup = renderSidebar(true);
-		const closedMarkup = renderSidebar(false);
+		const { rerender } = renderSidebar(true);
 
-		expect(openMarkup).toContain('aria-expanded="true"');
-		expect(openMarkup).toContain("Organisation");
-		expect(closedMarkup).toContain('aria-expanded="false"');
-		expect(closedMarkup).toContain('aria-hidden="true"');
+		const toggle = screen.getByRole("button", {
+			name: "Réduire le menu dashboard",
+		});
+		expect(toggle).toHaveAttribute("aria-expanded", "true");
+		expect(
+			screen.getByRole("heading", { name: "Organisation" }),
+		).toBeInTheDocument();
+
+		rerender(
+			<DashboardSidebar
+				calendarEvents={calendarEvents}
+				dashboardNote={dashboardNote}
+				isMenuOpen={false}
+				isMutating={false}
+				projects={projects}
+				tasks={tasks}
+				onCreateCalendarEvent={vi.fn()}
+				onDeleteCalendarEvent={vi.fn()}
+				onToggleMenu={vi.fn()}
+				onUpdateDashboardNote={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getByRole("button", { name: "Ouvrir le menu dashboard" }),
+		).toHaveAttribute("aria-expanded", "false");
+		expect(screen.getByLabelText("Activités du dashboard")).toContainElement(
+			document.querySelector('[aria-hidden="true"]'),
+		);
 	});
 
 	it("renders global completed task stats and period controls", () => {
-		const markup = renderSidebar();
+		renderSidebar();
 
-		expect(markup).toContain("1 tâches terminées");
-		expect(markup).toContain("cette semaine");
-		expect(markup).toContain("Semaine");
-		expect(markup).toContain("Mois");
+		expect(
+			screen.getByRole("img", {
+				name: "1 tâches terminées cette semaine",
+			}),
+		).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Semaine" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Mois" })).toBeInTheDocument();
 	});
 
 	it("renders project milestones, unplanned milestones, events, and notes accordion", () => {
-		const markup = renderSidebar();
+		renderSidebar();
 
-		expect(markup).toContain("Refonte UI");
-		expect(markup).toContain("UI freeze jeudi 18:00");
-		expect(markup).toContain("18:00");
-		expect(markup).toContain("À planifier");
-		expect(markup).toContain("Backlog");
-		expect(markup).toContain("Démo client");
-		expect(markup).toContain("Supprimer Démo client");
-		expect(markup).toContain("Notes");
-		expect(markup).not.toContain("preview");
+		expect(screen.getByText("Refonte UI")).toBeInTheDocument();
+		expect(screen.getByText("UI freeze jeudi 18:00")).toBeInTheDocument();
+		expect(screen.getAllByText("18:00").length).toBeGreaterThan(0);
+		expect(screen.getByText("À planifier")).toBeInTheDocument();
+		expect(screen.getByText("Backlog")).toBeInTheDocument();
+		expect(screen.getByText("Démo client")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Supprimer Démo client" }),
+		).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Notes/ })).toBeInTheDocument();
+		expect(screen.queryByText("preview")).not.toBeInTheDocument();
+	});
+
+	it("creates calendar events and saves dashboard notes from user input", async () => {
+		const user = userEvent.setup();
+		const onCreateCalendarEvent = vi
+			.fn()
+			.mockResolvedValue({ ...calendarEvents[0], id: "event-2" });
+		const onUpdateDashboardNote = vi
+			.fn()
+			.mockResolvedValue({ ...dashboardNote, content: "# Nouvelle note" });
+
+		render(
+			<DashboardSidebar
+				calendarEvents={calendarEvents}
+				dashboardNote={dashboardNote}
+				isMenuOpen={true}
+				isMutating={false}
+				projects={projects}
+				tasks={tasks}
+				onCreateCalendarEvent={onCreateCalendarEvent}
+				onDeleteCalendarEvent={vi.fn()}
+				onToggleMenu={vi.fn()}
+				onUpdateDashboardNote={onUpdateDashboardNote}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("Titre de l'événement"), "Release");
+		await user.clear(screen.getByLabelText("Date de l'événement"));
+		await user.type(screen.getByLabelText("Date de l'événement"), "2026-05-08");
+		await user.type(screen.getByLabelText("Heure de l'événement"), "09:30");
+		await user.selectOptions(
+			screen.getByLabelText("Type d'entrée planning"),
+			"reminder",
+		);
+		await user.type(screen.getByLabelText("Note de l'événement"), "Préparer");
+		await user.click(screen.getByRole("button", { name: "Ajouter" }));
+
+		expect(onCreateCalendarEvent).toHaveBeenCalledWith({
+			title: "Release",
+			date: "2026-05-08",
+			time: "09:30",
+			kind: "reminder",
+			notes: "Préparer",
+		});
+
+		await user.click(screen.getByRole("button", { name: /Notes/ }));
+		await user.clear(screen.getByLabelText("Notes dashboard markdown"));
+		await user.type(
+			screen.getByLabelText("Notes dashboard markdown"),
+			"# Nouvelle note",
+		);
+		await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+		expect(onUpdateDashboardNote).toHaveBeenCalledWith({
+			content: "# Nouvelle note",
+		});
 	});
 });
