@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { extname, join } from "node:path";
+import { extname, resolve, sep } from "node:path";
 import { serverConfig } from "../config.js";
 
 const mimeByExtension = {
@@ -23,9 +23,30 @@ function sendBuffer(response, statusCode, contentType, buffer) {
 	response.end(buffer);
 }
 
+function isPathInsideDirectory(filePath, directoryPath) {
+	return (
+		filePath === directoryPath || filePath.startsWith(`${directoryPath}${sep}`)
+	);
+}
+
+function sendNotFound(response) {
+	sendBuffer(
+		response,
+		404,
+		"text/plain; charset=utf-8",
+		Buffer.from("Not found"),
+	);
+}
+
 export function serveStaticAsset(response, pathname) {
 	const safePath = pathname === "/" ? "/index.html" : pathname;
-	const requestedPath = join(serverConfig.distPath, safePath);
+	const distRoot = resolve(serverConfig.distPath);
+	const requestedPath = resolve(distRoot, safePath.replace(/^\/+/, ""));
+
+	if (!isPathInsideDirectory(requestedPath, distRoot)) {
+		sendNotFound(response);
+		return true;
+	}
 
 	if (existsSync(requestedPath)) {
 		sendBuffer(
@@ -38,10 +59,11 @@ export function serveStaticAsset(response, pathname) {
 	}
 
 	if (pathname.startsWith("/assets/")) {
-		return false;
+		sendNotFound(response);
+		return true;
 	}
 
-	const indexPath = join(serverConfig.distPath, "index.html");
+	const indexPath = resolve(distRoot, "index.html");
 	if (!existsSync(indexPath)) {
 		const message = `
 <html lang="fr">

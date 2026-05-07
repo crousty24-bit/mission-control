@@ -5,14 +5,14 @@
 [![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178c6?style=flat-square)](https://www.typescriptlang.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-local-003b57?style=flat-square)](https://www.sqlite.org/)
-[![App Version](https://img.shields.io/badge/App-1.0.0-111827?style=flat-square)](#mission-control)
+[![App Version](https://img.shields.io/badge/App-1.2.1-111827?style=flat-square)](#mission-control)
 [![Status](https://img.shields.io/badge/Status-MVP-2f855a?style=flat-square)](#mission-control)
 
 Mission Control is a personal desktop dashboard for tracking projects, tasks, progress, and archives in a fully local environment.
 
 **Current status: MVP**
 
-Current packaged desktop build version: **0.1.0**.
+Current packaged desktop build version: **1.2.1**.
 
 The project is intentionally scoped to a single use case:
 
@@ -163,7 +163,7 @@ find src-tauri/target/release/bundle -name "*.deb"
 3. Install it:
 
 ```bash
-sudo apt install ./src-tauri/target/release/bundle/deb/"Mission Control_0.1.0_amd64.deb"
+sudo apt install ./src-tauri/target/release/bundle/deb/"Mission Control_1.2.1_amd64.deb"
 ```
 
 4. Launch **Mission Control** from:
@@ -240,7 +240,7 @@ Use this mode to:
 
 ```bash
 npm run tauri:build
-sudo apt install ./src-tauri/target/release/bundle/deb/"Mission Control_0.1.0_amd64.deb"
+sudo apt install ./src-tauri/target/release/bundle/deb/"Mission Control_1.2.1_amd64.deb"
 ```
 
 Then relaunch the app from the system menu.
