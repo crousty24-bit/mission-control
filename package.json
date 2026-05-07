@@ -18,6 +18,7 @@
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"build:app": "npm run build && npm run build:server",
+		"build:static": "tsc -b && VITE_MISSION_CONTROL_STATIC_DEMO=true vite build --base=/mission-control/",
 		"lint": "npm run lint:eslint",
 		"lint:eslint": "eslint .",
 		"lint:biome": "biome check .",
@@ -25,6 +26,7 @@
 		"lint:biome:write": "biome check --write .",
 		"lint:biome:write:files": "biome check --write",
 		"preview": "vite preview",
+		"preview:static": "VITE_MISSION_CONTROL_STATIC_DEMO=true vite preview --base=/mission-control/",
 		"server": "node server/index.js",
 		"db:reset": "node server/scripts/reset-db.js"
 	},

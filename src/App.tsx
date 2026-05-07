@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isStaticDemoRuntime } from "./api/runtimeMode";
 import { AppShell } from "./components/AppShell";
 import { AppDataProvider } from "./features/app-data/AppDataProvider";
 import { BrowserRouter, Route, Routes } from "./lib/router";
@@ -12,7 +13,7 @@ function App() {
 
 	return (
 		<AppDataProvider>
-			<BrowserRouter>
+			<BrowserRouter useHashRouting={isStaticDemoRuntime()}>
 				<Routes>
 					<Route
 						element={

@@ -206,6 +206,23 @@ Ce mode lance :
 
 Le script `npm run app` reste disponible comme lancement navigateur local buildé, mais ce n’est plus le mode produit recommandé.
 
+### Démo statique GitHub Pages
+
+```bash
+cd /home/user/path/to/mission-control
+npm run build:static
+npm run preview:static
+```
+
+Ce mode produit une démo navigateur autonome pour `https://crousty24-bit.github.io/mission-control/`.
+
+- aucune API Node ni runtime Tauri
+- données initiales de démo seedées côté front
+- actions persistées dans le `localStorage` du navigateur
+- navigation en hash URLs (`#/dashboard`, `#/archives`) pour éviter les 404 GitHub Pages
+
+Le workflow GitHub Actions `Deploy static demo to GitHub Pages` build et publie automatiquement le dossier `dist`.
+
 ## Workflow de Développement
 
 ### Travailler sur l’application
@@ -239,6 +256,8 @@ npm run app
 npm run db:reset
 npm run build
 npm run build:server
+npm run build:static
+npm run preview:static
 npm run lint
 npm run lint:eslint
 npm run lint:biome
