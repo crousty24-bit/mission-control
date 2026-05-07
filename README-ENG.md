@@ -205,6 +205,23 @@ This mode launches:
 
 `npm run app` is still available as a built browser launch, but it is no longer the recommended production mode.
 
+### Static GitHub Pages demo
+
+```bash
+cd /home/user/path/to/mission-control
+npm run build:static
+npm run preview:static
+```
+
+This mode produces a standalone browser demo for `https://crousty24-bit.github.io/mission-control/`.
+
+- no Node API or Tauri runtime
+- seeded demo data on the frontend
+- actions persisted in browser `localStorage`
+- hash URL navigation (`#/dashboard`, `#/archives`) to avoid GitHub Pages 404s
+
+The `Deploy static demo to GitHub Pages` GitHub Actions workflow builds and publishes the `dist` folder automatically.
+
 ## Development Workflow
 
 ### Work on the app
@@ -238,6 +255,8 @@ npm run app
 npm run db:reset
 npm run build
 npm run build:server
+npm run build:static
+npm run preview:static
 npm run lint
 npm run lint:eslint
 npm run lint:biome

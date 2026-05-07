@@ -18,7 +18,7 @@ import type {
 } from "../types";
 
 export interface MissionControlDataSource {
-	mode: "http" | "tauri";
+	mode: "http" | "static" | "tauri";
 	label: string;
 	getProjects: () => Promise<ProjectWithProgress[]>;
 	getArchivedProjects: () => Promise<ProjectWithProgress[]>;

@@ -28,7 +28,7 @@ export interface AppDataContextValue {
 	calendarEvents: CalendarEvent[];
 	dashboardNote: DashboardNote;
 	dataSourceLabel: string;
-	dataSourceMode: "http" | "tauri";
+	dataSourceMode: "http" | "static" | "tauri";
 	error: string | null;
 	isLoading: boolean;
 	isMutating: boolean;

@@ -13,6 +13,7 @@ import {
 } from "react";
 
 interface RouterContextValue {
+	createHref: (to: string) => string;
 	pathname: string;
 	navigate: (to: string) => void;
 }
@@ -88,30 +89,53 @@ function renderRoutes(children: ReactNode, pathname: string): ReactNode {
 	return cloneElement(match.props.element);
 }
 
-export function BrowserRouter({ children }: { children: ReactNode }) {
-	const [pathname, setPathname] = useState(
-		() => window.location.pathname || "/",
+interface BrowserRouterProps {
+	children: ReactNode;
+	useHashRouting?: boolean;
+}
+
+function getHashPathname() {
+	const hashPath = window.location.hash.replace(/^#/, "");
+	return hashPath || "/";
+}
+
+function getBrowserPathname(useHashRouting: boolean) {
+	return useHashRouting ? getHashPathname() : window.location.pathname || "/";
+}
+
+export function BrowserRouter({
+	children,
+	useHashRouting = false,
+}: BrowserRouterProps) {
+	const [pathname, setPathname] = useState(() =>
+		getBrowserPathname(useHashRouting),
 	);
 
 	useEffect(() => {
-		const onPopState = () => setPathname(window.location.pathname || "/");
-		window.addEventListener("popstate", onPopState);
-		return () => window.removeEventListener("popstate", onPopState);
-	}, []);
+		const eventName = useHashRouting ? "hashchange" : "popstate";
+		const onNavigation = () => setPathname(getBrowserPathname(useHashRouting));
+		window.addEventListener(eventName, onNavigation);
+		return () => window.removeEventListener(eventName, onNavigation);
+	}, [useHashRouting]);
 
 	const contextValue = useMemo<RouterContextValue>(
 		() => ({
+			createHref: (to: string) => (useHashRouting ? `#${to}` : to),
 			pathname,
 			navigate: (to: string) => {
 				if (to === pathname) {
 					return;
 				}
 
-				window.history.pushState({}, "", to);
+				if (useHashRouting) {
+					window.location.hash = to;
+				} else {
+					window.history.pushState({}, "", to);
+				}
 				setPathname(to);
 			},
 		}),
-		[pathname],
+		[pathname, useHashRouting],
 	);
 
 	return (
@@ -151,7 +175,11 @@ export function Link({ to, className, children }: LinkProps) {
 	};
 
 	return (
-		<a href={to} className={className} onClick={handleClick}>
+		<a
+			href={context.createHref(to)}
+			className={className}
+			onClick={handleClick}
+		>
 			{children}
 		</a>
 	);
