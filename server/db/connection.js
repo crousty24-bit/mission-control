@@ -15,3 +15,12 @@ export function getDb() {
 	database.exec("PRAGMA foreign_keys = ON;");
 	return database;
 }
+
+export function closeDatabase() {
+	if (!database) {
+		return;
+	}
+
+	database.close();
+	database = undefined;
+}

@@ -7,7 +7,9 @@ const rootDir = dirname(
 
 export const serverConfig = {
 	appUrl: "http://127.0.0.1:3001",
-	dbPath: join(rootDir, "server", "data", "mission-control.sqlite"),
+	dbPath:
+		process.env.MISSION_CONTROL_DB_PATH ??
+		join(rootDir, "server", "data", "mission-control.sqlite"),
 	distPath: join(rootDir, "dist"),
 	host: "127.0.0.1",
 	port: 3001,
