@@ -1,0 +1,20 @@
+{
+  "skill_name": "code-readability",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Refactor this React component to make it easier to read and maintain. Keep behavior unchanged, reduce nesting, and follow the existing project style.",
+      "expected_output": "A targeted refactor that preserves behavior, reduces JSX/control-flow complexity, and reports verification."
+    },
+    {
+      "id": 2,
+      "prompt": "Ce fichier devient difficile à maintenir. Améliore l'indentation, simplifie les conditions et rends le code plus lisible sans changer la logique métier.",
+      "expected_output": "Une modification minimale qui laisse la logique métier intacte, confie le formatage au formatter du repo, et explique les incertitudes éventuelles."
+    },
+    {
+      "id": 3,
+      "prompt": "Clean up this service so it can scale long-term. Avoid a big rewrite; focus on clearer names, fewer repeated blocks, and simpler error handling.",
+      "expected_output": "A small service-level cleanup with clearer structure, no unnecessary abstraction, and focused lint/test verification."
+    }
+  ]
+}
