@@ -122,6 +122,23 @@ export function initDatabase() {
       streak_cycle_started_at TEXT,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS calendar_events (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT,
+      kind TEXT NOT NULL,
+      notes TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS dashboard_notes (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
 
 	ensureColumn(db, "projects", "archived_at", "TEXT");
@@ -158,6 +175,15 @@ export function initDatabase() {
 
 	if (addedTaskOrderColumn) {
 		hydrateTaskOrderIndex(db);
+	}
+
+	const noteCount = db
+		.prepare("SELECT COUNT(*) AS count FROM dashboard_notes")
+		.get().count;
+	if (noteCount === 0) {
+		db.prepare(
+			"INSERT INTO dashboard_notes (id, content, updated_at) VALUES (?, ?, ?)",
+		).run("dashboard-note", "", now());
 	}
 
 	const projectCount = db

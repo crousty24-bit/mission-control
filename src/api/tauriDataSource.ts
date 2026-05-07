@@ -1,8 +1,11 @@
 import type {
 	CreateAgentInput,
+	CreateCalendarEventInput,
 	CreateProjectInput,
 	CreateTaskInput,
 	UpdateAgentInput,
+	UpdateCalendarEventInput,
+	UpdateDashboardNoteInput,
 	UpdateProjectInput,
 	UpdateTaskInput,
 	UpdateUserSnapshotInput,
@@ -34,6 +37,16 @@ export const tauriDataSource: MissionControlDataSource = {
 		invokeTauri("reorder_tasks", { projectId, taskIds }).then(() => undefined),
 	deleteTask: (taskId: string) =>
 		invokeTauri("delete_task", { taskId }).then(() => undefined),
+	getCalendarEvents: () => invokeTauri("get_calendar_events"),
+	createCalendarEvent: (input: CreateCalendarEventInput) =>
+		invokeTauri("create_calendar_event", { input }),
+	updateCalendarEvent: (eventId: string, input: UpdateCalendarEventInput) =>
+		invokeTauri("update_calendar_event", { eventId, changes: input }),
+	deleteCalendarEvent: (eventId: string) =>
+		invokeTauri("delete_calendar_event", { eventId }).then(() => undefined),
+	getDashboardNote: () => invokeTauri("get_dashboard_note"),
+	updateDashboardNote: (input: UpdateDashboardNoteInput) =>
+		invokeTauri("update_dashboard_note", { changes: input }),
 	getAgents: () => invokeTauri("get_agents"),
 	createAgent: (input: CreateAgentInput) =>
 		invokeTauri("create_agent", { input }),

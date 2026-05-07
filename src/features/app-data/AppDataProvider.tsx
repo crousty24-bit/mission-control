@@ -7,6 +7,8 @@ import {
 } from "react";
 import { createMissionControlDataSource } from "../../api/createDataSource";
 import type {
+	CalendarEvent,
+	DashboardNote,
 	LocalAgent,
 	ProjectWithProgress,
 	TaskItem,
@@ -15,6 +17,7 @@ import type {
 import {
 	AppDataContext,
 	type AppDataContextValue,
+	emptyDashboardNote,
 	emptySnapshot,
 	type RewardNotification,
 } from "./context";
@@ -22,6 +25,8 @@ import {
 interface AppDataPayload {
 	agents: LocalAgent[];
 	archivedProjects: ProjectWithProgress[];
+	calendarEvents: CalendarEvent[];
+	dashboardNote: DashboardNote;
 	projects: ProjectWithProgress[];
 	snapshot: UserSnapshot;
 	tasks: TaskItem[];
@@ -74,6 +79,10 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 	>([]);
 	const [tasks, setTasks] = useState<TaskItem[]>([]);
 	const [agents, setAgents] = useState<LocalAgent[]>([]);
+	const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+	const [dashboardNote, setDashboardNote] = useState<DashboardNote | null>(
+		null,
+	);
 	const [snapshot, setSnapshot] = useState<UserSnapshot | null>(null);
 	const [rewardNotifications, setRewardNotifications] = useState<
 		RewardNotification[]
@@ -90,12 +99,16 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 			archivedProjectsData,
 			tasksData,
 			agentsData,
+			calendarEventsData,
+			dashboardNoteData,
 			snapshotData,
 		] = await Promise.all([
 			dataSource.getProjects(),
 			dataSource.getArchivedProjects(),
 			dataSource.getTasks(),
 			dataSource.getAgents(),
+			dataSource.getCalendarEvents(),
+			dataSource.getDashboardNote(),
 			dataSource.getUserSnapshot(),
 		]);
 
@@ -103,10 +116,14 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 		setArchivedProjects(archivedProjectsData);
 		setTasks(tasksData);
 		setAgents(agentsData);
+		setCalendarEvents(calendarEventsData);
+		setDashboardNote(dashboardNoteData);
 		setSnapshot(snapshotData);
 		return {
 			agents: agentsData,
 			archivedProjects: archivedProjectsData,
+			calendarEvents: calendarEventsData,
+			dashboardNote: dashboardNoteData,
 			projects: projectsData,
 			snapshot: snapshotData,
 			tasks: tasksData,
@@ -185,6 +202,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 		() => ({
 			agents,
 			archivedProjects,
+			calendarEvents,
+			dashboardNote: dashboardNote ?? emptyDashboardNote,
 			dataSourceLabel: dataSource.label,
 			dataSourceMode: dataSource.mode,
 			error,
@@ -212,6 +231,14 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 			reorderTasks: (projectId, taskIds) =>
 				runMutation(() => dataSource.reorderTasks(projectId, taskIds)),
 			deleteTask: (taskId) => runMutation(() => dataSource.deleteTask(taskId)),
+			createCalendarEvent: (input) =>
+				runMutation(() => dataSource.createCalendarEvent(input)),
+			updateCalendarEvent: (eventId, input) =>
+				runMutation(() => dataSource.updateCalendarEvent(eventId, input)),
+			deleteCalendarEvent: (eventId) =>
+				runMutation(() => dataSource.deleteCalendarEvent(eventId)),
+			updateDashboardNote: (input) =>
+				runMutation(() => dataSource.updateDashboardNote(input)),
 			createAgent: (input) => runMutation(() => dataSource.createAgent(input)),
 			updateAgent: (agentId, input) =>
 				runMutation(() => dataSource.updateAgent(agentId, input)),
@@ -221,6 +248,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 		[
 			agents,
 			archivedProjects,
+			calendarEvents,
+			dashboardNote,
 			dataSource,
 			dismissRewardNotification,
 			error,

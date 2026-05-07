@@ -4,6 +4,16 @@ import {
 	patchAgent,
 } from "../services/agentService.js";
 import {
+	createCalendarEventRecord,
+	deleteCalendarEvent,
+	getCalendarEvents,
+	patchCalendarEvent,
+} from "../services/calendarService.js";
+import {
+	getDashboardNoteView,
+	patchDashboardNote,
+} from "../services/dashboardNoteService.js";
+import {
 	archiveProjects,
 	createProject,
 	deleteProject,
@@ -35,6 +45,10 @@ function matchTaskPath(pathname) {
 
 function matchAgentPath(pathname) {
 	return pathname.match(/^\/api\/agents\/([^/]+)$/);
+}
+
+function matchCalendarEventPath(pathname) {
+	return pathname.match(/^\/api\/calendar-events\/([^/]+)$/);
 }
 
 export async function handleApiRequest(request, response, url) {
@@ -168,6 +182,65 @@ export async function handleApiRequest(request, response, url) {
 		}
 
 		sendText(response, 204, "");
+		return true;
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/calendar-events") {
+		sendJson(response, 200, getCalendarEvents());
+		return true;
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/calendar-events") {
+		try {
+			const event = createCalendarEventRecord(await readJsonBody(request));
+			sendJson(response, 201, event);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Événement invalide";
+			sendText(response, 400, message);
+		}
+		return true;
+	}
+
+	const calendarEventMatch = matchCalendarEventPath(url.pathname);
+	if (calendarEventMatch && request.method === "PATCH") {
+		try {
+			const event = patchCalendarEvent(
+				calendarEventMatch[1],
+				await readJsonBody(request),
+			);
+			if (!event) {
+				sendText(response, 404, "Calendar event not found");
+				return true;
+			}
+
+			sendJson(response, 200, event);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Événement invalide";
+			sendText(response, 400, message);
+		}
+		return true;
+	}
+
+	if (calendarEventMatch && request.method === "DELETE") {
+		const deleted = deleteCalendarEvent(calendarEventMatch[1]);
+		if (!deleted) {
+			sendText(response, 404, "Calendar event not found");
+			return true;
+		}
+
+		sendText(response, 204, "");
+		return true;
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/dashboard-note") {
+		sendJson(response, 200, getDashboardNoteView());
+		return true;
+	}
+
+	if (request.method === "PATCH" && url.pathname === "/api/dashboard-note") {
+		sendJson(response, 200, patchDashboardNote(await readJsonBody(request)));
 		return true;
 	}
 
