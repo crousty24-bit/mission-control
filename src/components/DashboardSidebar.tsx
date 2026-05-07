@@ -4,6 +4,7 @@ import type {
 	CalendarEventKind,
 	DashboardNote,
 	Project,
+	TaskItem,
 } from "../types";
 
 interface DashboardSidebarProps {
@@ -12,6 +13,7 @@ interface DashboardSidebarProps {
 	isMenuOpen: boolean;
 	isMutating: boolean;
 	projects: Project[];
+	tasks: TaskItem[];
 	onCreateCalendarEvent: (input: {
 		title: string;
 		date: string;
@@ -43,6 +45,8 @@ const dayIndexes = new Map([
 	["samedi", 5],
 	["dimanche", 6],
 ]);
+
+type StatsPeriod = "week" | "month";
 
 function toDateInputValue(date: Date) {
 	const year = date.getFullYear();
@@ -141,6 +145,96 @@ function parseProjectMilestone(
 	};
 }
 
+function buildCompletionBuckets(tasks: TaskItem[], period: StatsPeriod) {
+	const bucketCount = period === "week" ? 7 : 4;
+	const completedTasks = tasks.filter((task) => task.done);
+	const buckets = Array.from({ length: bucketCount }, () => 0);
+
+	for (const [index] of completedTasks.entries()) {
+		buckets[index % bucketCount] += 1;
+	}
+
+	return buckets;
+}
+
+function buildSparklinePath(values: number[], width: number, height: number) {
+	const maxValue = Math.max(...values, 1);
+	const xStep = width / Math.max(values.length - 1, 1);
+	const points = values.map((value, index) => {
+		const x = index * xStep;
+		const y = height - (value / maxValue) * (height - 8) - 4;
+		return { x, y };
+	});
+	const linePath = points
+		.map((point, index) =>
+			index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`,
+		)
+		.join(" ");
+	const areaPath = `${linePath} L ${width} ${height} L 0 ${height} Z`;
+
+	return { areaPath, linePath };
+}
+
+function TaskCompletionStats({ tasks }: { tasks: TaskItem[] }) {
+	const [period, setPeriod] = useState<StatsPeriod>("week");
+	const completedCount = tasks.filter((task) => task.done).length;
+	const buckets = useMemo(
+		() => buildCompletionBuckets(tasks, period),
+		[tasks, period],
+	);
+	const { areaPath, linePath } = useMemo(
+		() => buildSparklinePath(buckets, 320, 92),
+		[buckets],
+	);
+	const periodLabel = period === "week" ? "cette semaine" : "ce mois";
+
+	return (
+		<section
+			className="dashboard-task-stats"
+			aria-label="Suivi tâches terminées"
+		>
+			<div className="dashboard-task-stats__header">
+				<div>
+					<strong>{completedCount} tâches terminées</strong>
+					<span>{periodLabel}</span>
+				</div>
+				<fieldset className="dashboard-task-stats__toggle">
+					<legend className="sr-only">Période</legend>
+					<button
+						type="button"
+						className={period === "week" ? "is-active" : undefined}
+						onClick={() => setPeriod("week")}
+					>
+						Semaine
+					</button>
+					<button
+						type="button"
+						className={period === "month" ? "is-active" : undefined}
+						onClick={() => setPeriod("month")}
+					>
+						Mois
+					</button>
+				</fieldset>
+			</div>
+			<svg
+				className="dashboard-task-stats__chart"
+				viewBox="0 0 320 92"
+				role="img"
+				aria-label={`${completedCount} tâches terminées ${periodLabel}`}
+			>
+				<defs>
+					<linearGradient id="task-stats-fill" x1="0" x2="0" y1="0" y2="1">
+						<stop offset="0%" stopColor="rgba(71, 126, 255, 0.86)" />
+						<stop offset="100%" stopColor="rgba(71, 126, 255, 0.14)" />
+					</linearGradient>
+				</defs>
+				<path d={areaPath} fill="url(#task-stats-fill)" />
+				<path d={linePath} fill="none" stroke="#9ec3ff" strokeWidth="3" />
+			</svg>
+		</section>
+	);
+}
+
 function DashboardNoteEditor({
 	dashboardNote,
 	isMutating,
@@ -181,6 +275,7 @@ export function DashboardSidebar({
 	isMenuOpen,
 	isMutating,
 	projects,
+	tasks,
 	onCreateCalendarEvent,
 	onDeleteCalendarEvent,
 	onToggleMenu,
@@ -274,6 +369,8 @@ export function DashboardSidebar({
 					<p className="eyebrow">Dashboard</p>
 					<h2>Organisation</h2>
 				</div>
+
+				<TaskCompletionStats tasks={tasks} />
 
 				<section className="dashboard-feature">
 					<button

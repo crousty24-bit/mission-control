@@ -70,6 +70,7 @@ export function DashboardPage({ projectSearchQuery }: DashboardPageProps) {
 	const selectedProject = projects.find(
 		(project) => project.id === resolvedProjectId,
 	);
+	const { tasks: allTasks } = useTasks();
 	const { tasks } = useTasks(resolvedProjectId || undefined);
 	const filteredProjects = useMemo(() => {
 		const searchTerms = normalizeSearchValue(projectSearchQuery)
@@ -126,6 +127,7 @@ export function DashboardPage({ projectSearchQuery }: DashboardPageProps) {
 				isMenuOpen={isDashboardMenuOpen}
 				isMutating={isDashboardFeatureMutating}
 				projects={projects}
+				tasks={allTasks}
 				onCreateCalendarEvent={createCalendarEvent}
 				onDeleteCalendarEvent={deleteCalendarEvent}
 				onToggleMenu={() => setIsDashboardMenuOpen((isOpen) => !isOpen)}
