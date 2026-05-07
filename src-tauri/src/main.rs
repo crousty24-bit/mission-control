@@ -102,6 +102,27 @@ struct UserSnapshot {
     medals_reward_count: i64,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CalendarEvent {
+    id: String,
+    title: String,
+    date: String,
+    time: Option<String>,
+    kind: String,
+    notes: String,
+    created_at: String,
+    updated_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct DashboardNote {
+    id: String,
+    content: String,
+    updated_at: String,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateProjectInput {
@@ -170,6 +191,32 @@ struct UpdateUserSnapshotInput {
     next_deadline: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateCalendarEventInput {
+    title: String,
+    date: String,
+    time: Option<String>,
+    kind: String,
+    notes: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateCalendarEventInput {
+    title: Option<String>,
+    date: Option<String>,
+    time: Option<Option<String>>,
+    kind: Option<String>,
+    notes: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateDashboardNoteInput {
+    content: String,
+}
+
 #[derive(Clone)]
 struct ProjectRecord {
     name: String,
@@ -183,7 +230,11 @@ struct ProjectRecord {
     archived_at: Option<String>,
 }
 
-fn has_column(connection: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
+fn has_column(
+    connection: &Connection,
+    table_name: &str,
+    column_name: &str,
+) -> Result<bool, String> {
     let mut statement = connection
         .prepare(&format!("PRAGMA table_info({table_name})"))
         .map_err(|error| error.to_string())?;
@@ -243,12 +294,12 @@ fn hydrate_project_order_indexes(connection: &Connection) -> Result<(), String> 
 
 fn hydrate_task_order_indexes(connection: &Connection) -> Result<(), String> {
     let mut statement = connection
-        .prepare(
-            "SELECT id, project_id FROM tasks ORDER BY project_id ASC, created_at ASC, id ASC",
-        )
+        .prepare("SELECT id, project_id FROM tasks ORDER BY project_id ASC, created_at ASC, id ASC")
         .map_err(|error| error.to_string())?;
     let rows = statement
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
         .map_err(|error| error.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string())?;
@@ -580,6 +631,23 @@ fn init_database(connection: &Connection) -> Result<(), String> {
               streak_cycle_started_at TEXT,
               updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS calendar_events (
+              id TEXT PRIMARY KEY,
+              title TEXT NOT NULL,
+              date TEXT NOT NULL,
+              time TEXT,
+              kind TEXT NOT NULL,
+              notes TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS dashboard_notes (
+              id TEXT PRIMARY KEY,
+              content TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
             ",
         )
         .map_err(|error| error.to_string())?;
@@ -628,6 +696,18 @@ fn init_database(connection: &Connection) -> Result<(), String> {
 
     if added_task_order_column {
         hydrate_task_order_indexes(connection)?;
+    }
+
+    let dashboard_note_count: i64 = connection
+        .query_row("SELECT COUNT(*) FROM dashboard_notes", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if dashboard_note_count == 0 {
+        connection
+            .execute(
+                "INSERT INTO dashboard_notes (id, content, updated_at) VALUES (?1, ?2, ?3)",
+                params!["dashboard-note", "", now_string()],
+            )
+            .map_err(|error| error.to_string())?;
     }
 
     let project_count: i64 = connection
@@ -1167,6 +1247,140 @@ fn get_user_snapshot_view(connection: &Connection) -> Result<UserSnapshot, Strin
     })
 }
 
+fn is_iso_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+}
+
+fn is_clock_time(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 5
+        && bytes[2] == b':'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| index == 2 || byte.is_ascii_digit())
+}
+
+fn normalize_event_kind(value: String) -> Result<String, String> {
+    if value == "event" || value == "reminder" {
+        return Ok(value);
+    }
+
+    Err("Event kind is invalid".to_string())
+}
+
+fn normalize_event_time(value: Option<String>) -> Result<Option<String>, String> {
+    let Some(time) = value else {
+        return Ok(None);
+    };
+    let trimmed = time.trim().to_string();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if !is_clock_time(&trimmed) {
+        return Err("Event time is invalid".to_string());
+    }
+
+    Ok(Some(trimmed))
+}
+
+fn list_calendar_events(connection: &Connection) -> Result<Vec<CalendarEvent>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, title, date, time, kind, notes, created_at, updated_at
+			 FROM calendar_events
+			 ORDER BY date ASC, time IS NULL ASC, time ASC, created_at ASC",
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(CalendarEvent {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                date: row.get(2)?,
+                time: row.get(3)?,
+                kind: row.get(4)?,
+                notes: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn get_calendar_event_record(
+    connection: &Connection,
+    event_id: &str,
+) -> Result<Option<CalendarEvent>, String> {
+    connection
+        .query_row(
+            "SELECT id, title, date, time, kind, notes, created_at, updated_at
+			 FROM calendar_events
+			 WHERE id = ?1",
+            [event_id],
+            |row| {
+                Ok(CalendarEvent {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    date: row.get(2)?,
+                    time: row.get(3)?,
+                    kind: row.get(4)?,
+                    notes: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn get_dashboard_note_record(connection: &Connection) -> Result<DashboardNote, String> {
+    let existing = connection
+        .query_row(
+            "SELECT id, content, updated_at FROM dashboard_notes WHERE id = ?1",
+            ["dashboard-note"],
+            |row| {
+                Ok(DashboardNote {
+                    id: row.get(0)?,
+                    content: row.get(1)?,
+                    updated_at: row.get(2)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+
+    if let Some(note) = existing {
+        return Ok(note);
+    }
+
+    let timestamp = now_string();
+    connection
+        .execute(
+            "INSERT INTO dashboard_notes (id, content, updated_at) VALUES (?1, ?2, ?3)",
+            params!["dashboard-note", "", timestamp],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(DashboardNote {
+        id: "dashboard-note".to_string(),
+        content: "".to_string(),
+        updated_at: timestamp,
+    })
+}
+
 #[tauri::command]
 fn get_projects() -> Result<Vec<ProjectWithProgress>, String> {
     let connection = open_connection()?;
@@ -1523,6 +1737,134 @@ fn delete_task(task_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_calendar_events() -> Result<Vec<CalendarEvent>, String> {
+    let connection = open_connection()?;
+    list_calendar_events(&connection)
+}
+
+#[tauri::command]
+fn create_calendar_event(input: CreateCalendarEventInput) -> Result<CalendarEvent, String> {
+    let connection = open_connection()?;
+    let title = input.title.trim().to_string();
+    let date = input.date.trim().to_string();
+    let time = normalize_event_time(input.time)?;
+    let kind = normalize_event_kind(input.kind)?;
+    let timestamp = now_string();
+    let event_id = Uuid::new_v4().to_string();
+
+    if title.is_empty() {
+        return Err("Event title is required".to_string());
+    }
+    if !is_iso_date(&date) {
+        return Err("Event date is invalid".to_string());
+    }
+
+    connection
+        .execute(
+            "INSERT INTO calendar_events (id, title, date, time, kind, notes, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                event_id,
+                title,
+                date,
+                time,
+                kind,
+                input.notes.unwrap_or_default().trim().to_string(),
+                timestamp,
+                timestamp
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    get_calendar_event_record(&connection, &event_id)?
+        .ok_or_else(|| "Calendar event not found".to_string())
+}
+
+#[tauri::command]
+fn update_calendar_event(
+    event_id: String,
+    changes: UpdateCalendarEventInput,
+) -> Result<CalendarEvent, String> {
+    let connection = open_connection()?;
+    let current = get_calendar_event_record(&connection, &event_id)?
+        .ok_or_else(|| "Calendar event not found".to_string())?;
+    let title = changes
+        .title
+        .map(|value| value.trim().to_string())
+        .unwrap_or(current.title);
+    let date = changes
+        .date
+        .map(|value| value.trim().to_string())
+        .unwrap_or(current.date);
+    let time = match changes.time {
+        Some(value) => normalize_event_time(value)?,
+        None => current.time,
+    };
+    let kind = normalize_event_kind(changes.kind.unwrap_or(current.kind))?;
+
+    if title.is_empty() {
+        return Err("Event title is required".to_string());
+    }
+    if !is_iso_date(&date) {
+        return Err("Event date is invalid".to_string());
+    }
+
+    connection
+        .execute(
+            "UPDATE calendar_events
+             SET title = ?1, date = ?2, time = ?3, kind = ?4, notes = ?5, updated_at = ?6
+             WHERE id = ?7",
+            params![
+                title,
+                date,
+                time,
+                kind,
+                changes.notes.unwrap_or(current.notes).trim().to_string(),
+                now_string(),
+                event_id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    get_calendar_event_record(&connection, &event_id)?
+        .ok_or_else(|| "Calendar event not found".to_string())
+}
+
+#[tauri::command]
+fn delete_calendar_event(event_id: String) -> Result<(), String> {
+    let connection = open_connection()?;
+    let deleted_count = connection
+        .execute("DELETE FROM calendar_events WHERE id = ?1", [event_id])
+        .map_err(|error| error.to_string())?;
+    if deleted_count == 0 {
+        return Err("Calendar event not found".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_dashboard_note() -> Result<DashboardNote, String> {
+    let connection = open_connection()?;
+    get_dashboard_note_record(&connection)
+}
+
+#[tauri::command]
+fn update_dashboard_note(changes: UpdateDashboardNoteInput) -> Result<DashboardNote, String> {
+    let connection = open_connection()?;
+    connection
+        .execute(
+            "INSERT INTO dashboard_notes (id, content, updated_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at",
+            params!["dashboard-note", changes.content, now_string()],
+        )
+        .map_err(|error| error.to_string())?;
+
+    get_dashboard_note_record(&connection)
+}
+
+#[tauri::command]
 fn get_agents() -> Result<Vec<LocalAgent>, String> {
     let connection = open_connection()?;
     list_agents(&connection)
@@ -1637,6 +1979,12 @@ fn main() {
             update_task,
             reorder_tasks,
             delete_task,
+            get_calendar_events,
+            create_calendar_event,
+            update_calendar_event,
+            delete_calendar_event,
+            get_dashboard_note,
+            update_dashboard_note,
             get_agents,
             create_agent,
             update_agent,

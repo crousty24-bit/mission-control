@@ -52,6 +52,45 @@ export interface TaskItem {
 	urgency: "today" | "week" | "later";
 }
 
+export type CalendarEventKind = "event" | "reminder";
+
+export interface CalendarEvent {
+	id: string;
+	title: string;
+	date: string;
+	time: string | null;
+	kind: CalendarEventKind;
+	notes: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface CreateCalendarEventInput {
+	title: string;
+	date: string;
+	time?: string | null;
+	kind: CalendarEventKind;
+	notes?: string;
+}
+
+export interface UpdateCalendarEventInput {
+	title?: string;
+	date?: string;
+	time?: string | null;
+	kind?: CalendarEventKind;
+	notes?: string;
+}
+
+export interface DashboardNote {
+	id: string;
+	content: string;
+	updatedAt: string;
+}
+
+export interface UpdateDashboardNoteInput {
+	content: string;
+}
+
 export interface CreateTaskInput {
 	title: string;
 	projectId: string;
