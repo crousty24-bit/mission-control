@@ -336,16 +336,16 @@ Le mode `tauri:dev` reste un mode debug. Le rendu release via package `.deb` est
 - **la persistance desktop Tauri est locale et hors du repo**
 - **la base SQLite du fallback web ne doit pas être versionnée**
 
-## Mode Pédagogique avec `tasks-review.md`
+## Mode Pédagogique avec le skill `review-learn`
 
-Le fichier [tasks-review.md](tasks-review.md) sert de cadre pour utiliser un agent IA, ici Codex, comme **assistant pédagogique** pendant le développement du projet.
+Le skill [`review-learn`](.agents/skills/review-learn/SKILL.md) sert de cadre pour utiliser un agent IA, ici Codex, comme **assistant pédagogique** pendant le développement du projet.
 
 L’objectif est double :
 
 - construire réellement l’application
 - pouvoir, en parallèle, poser des questions sur l’architecture et le code pour apprendre en avançant
 
-Quand ce mode est activé avec un prompt du type `Tasks: ...`, l’agent doit basculer en posture de mentor et :
+Quand ce skill est activé par une question d’audit, d’apprentissage ou de revue d’architecture, l’agent doit basculer en posture de mentor et :
 
 - expliquer le rôle des composants
 - montrer où vivent les `props` et les `state`
@@ -360,8 +360,7 @@ L’utilité est particulièrement forte pour un développeur qui débute avec :
 - Tauri
 
 La démarche consiste à **apprendre sur le tas tout en développant son projet**, au lieu de séparer totalement apprentissage et implémentation.
-
-Le principe est générique : il peut s’appliquer à n’importe quel autre projet ou stack, tant qu’un fichier similaire existe pour cadrer le comportement pédagogique de l’agent.
+Le principe est générique : il peut s’appliquer à n’importe quel autre projet ou stack, tant qu’un skill similaire existe pour cadrer le comportement pédagogique de l’agent.
 
 ## Roadmap
 
