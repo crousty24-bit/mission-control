@@ -335,16 +335,16 @@ Currently verified locally:
 - **the Tauri desktop persistence lives locally outside the repo**
 - **the SQLite database used by the web fallback must not be versioned**
 
-## Pedagogical Mode with `tasks-review.md`
+## Pedagogical Mode with the `review-learn` skill
 
-The [tasks-review.md](tasks-review.md) file exists to frame the use of an AI agent, here Codex, as a **teaching assistant** during development.
+The [`review-learn`](.agents/skills/review-learn/SKILL.md). It frames the use of an AI agent, here Codex, as a **teaching assistant** during development.
 
 The goal is twofold:
 
 - actually build the application
 - still be able to ask questions about architecture and code while learning
 
-When this mode is activated with a prompt such as `Tasks: ...`, the agent should switch to a mentor posture and:
+When this skill is activated by an audit, learning, or architecture review question, the agent should switch to a mentor posture and:
 
 - explain the role of components
 - show where `props` and `state` live
@@ -359,8 +359,7 @@ This is especially useful for a developer learning:
 - Tauri
 
 The broader idea is to **learn by building the real project**, instead of separating learning from implementation.
-
-The principle is generic: it can be applied to other projects or stacks as long as a similar file exists to frame the agent’s teaching behavior.
+The principle is generic: it can be applied to other projects or stacks as long as a similar skill exists to frame the agent’s teaching behavior.
 
 ## Roadmap
 
