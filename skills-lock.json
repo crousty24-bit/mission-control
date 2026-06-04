@@ -7,6 +7,11 @@
       "skillPath": "caveman/SKILL.md",
       "computedHash": "259cb6ef69b4e9eeb07155c925ce9895ed509b0feb6a7e29cbc9e70d3c7bcfb2"
     },
+    "code-quality-guardian": {
+      "source": "/home/allen/mes_projets/code-quality-guardian",
+      "sourceType": "local",
+      "computedHash": "76d44e54629a56934c60a8be957503ad7a41539bbfab800f172f2d2fbcf2197c"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
